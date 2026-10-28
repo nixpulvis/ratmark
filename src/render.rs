@@ -336,10 +336,7 @@ impl<'t> Renderer<'t> {
             Tag::Heading { level, .. } => {
                 self.begin_block();
                 let level = heading_index(level);
-                self.piece(
-                    format!("{} ", "#".repeat(level + 1)),
-                    self.theme.heading_marker,
-                );
+                self.heading_marker(level);
                 self.push_style(self.theme.headings[level]);
             }
             Tag::BlockQuote(_) => {
@@ -439,11 +436,12 @@ impl<'t> Renderer<'t> {
             TagEnd::Paragraph => self.end_block(),
             TagEnd::Heading(level) => {
                 self.pop_style();
-                // Skip the `#` marks, the first piece.
+                // Skip the `#` marks, if there are any.
+                let marks = usize::from(self.theme.heading_marker.is_some());
                 let text: String = self
                     .inline
                     .iter()
-                    .skip(1)
+                    .skip(marks)
                     .filter_map(|i| match i {
                         Inline::Piece(p) => Some(p.text.as_str()),
                         Inline::Break => None,
@@ -712,6 +710,7 @@ impl<'t> Renderer<'t> {
                             self.inline.push(Inline::Break);
                         }
                         let level = usize::from(name.as_bytes()[1] - b'1');
+                        self.heading_marker(level);
                         self.styled_html(name, self.theme.headings[level]);
                     }
                     "strong" | "b" => self.styled_html(name, self.theme.strong),
@@ -758,6 +757,13 @@ impl<'t> Renderer<'t> {
                     }
                 },
             }
+        }
+    }
+
+    /// The theme's `#` marks for a heading at `level`, counted from 0.
+    fn heading_marker(&mut self, level: usize) {
+        if let Some(style) = self.theme.heading_marker {
+            self.piece(format!("{} ", "#".repeat(level + 1)), style);
         }
     }
 

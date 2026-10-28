@@ -25,8 +25,24 @@ fn paragraphs_wrap_with_gaps() {
 }
 
 #[test]
-fn headings_keep_their_marks() {
-    assert_eq!(lines("## Hi there", 40), ["## Hi there"]);
+fn headings_have_no_marks_by_default() {
+    assert_eq!(lines("## Hi there", 40), ["Hi there"]);
+}
+
+#[test]
+fn headings_can_show_their_marks() {
+    let theme = Theme {
+        heading_marker: Some(Default::default()),
+        ..Theme::default()
+    };
+    let rendered = render("## Hi there\n\n<h3>And here</h3>", 40, &theme);
+    let text: Vec<String> = rendered
+        .lines
+        .iter()
+        .map(|l| l.spans.iter().map(|s| s.content.as_ref()).collect())
+        .collect();
+    assert_eq!(text, ["## Hi there", "", "### And here"]);
+    assert_eq!(rendered.headings[0].text, "Hi there");
 }
 
 #[test]
@@ -115,7 +131,7 @@ fn front_matter_is_kept_aside() {
 fn kramdown_attribute_lists_are_dropped() {
     assert_eq!(
         lines("## Notes\n{:.no_toc}\n\ntext", 40),
-        ["## Notes", "", "text"]
+        ["Notes", "", "text"]
     );
 }
 
@@ -172,7 +188,7 @@ fn headings_are_listed() {
         .iter()
         .map(|s| s.content.as_ref())
         .collect();
-    assert_eq!(text, "## One two");
+    assert_eq!(text, "One two");
 }
 
 #[test]

@@ -9,8 +9,9 @@ pub struct Theme {
     pub text: Style,
     /// Heading text, by level from `#` to `######`.
     pub headings: [Style; 6],
-    /// The `#` marks in front of a heading.
-    pub heading_marker: Style,
+    /// The style of `#` marks drawn in front of each heading, Markdown or
+    /// HTML, to show its level. `None`, the default, draws no marks.
+    pub heading_marker: Option<Style>,
     pub emphasis: Style,
     pub strong: Style,
     pub strikethrough: Style,
@@ -71,7 +72,7 @@ impl Theme {
                 Style::new().fg(GREEN),
                 Style::new().fg(GREEN),
             ],
-            heading_marker: Style::new().fg(GRAY),
+            heading_marker: None,
             emphasis: Style::new().add_modifier(Modifier::ITALIC),
             strong: Style::new().add_modifier(bold),
             strikethrough: Style::new().add_modifier(Modifier::CROSSED_OUT),
@@ -108,7 +109,7 @@ impl Theme {
                 bold,
                 bold,
             ],
-            heading_marker: dim,
+            heading_marker: None,
             emphasis: Style::new().add_modifier(Modifier::ITALIC),
             strong: bold,
             strikethrough: Style::new().add_modifier(Modifier::CROSSED_OUT),
