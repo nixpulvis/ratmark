@@ -704,7 +704,16 @@ impl<'t> Renderer<'t> {
                     "em" | "i" | "cite" => self.styled_html(name, self.theme.emphasis),
                     "code" | "kbd" | "tt" | "samp" => self.styled_html(name, self.theme.code),
                     "s" | "del" | "strike" => self.styled_html(name, self.theme.strikethrough),
-                    "small" | "sub" | "sup" => self.styled_html(name, self.theme.small),
+                    "small" => {
+                        // A heading's small print is a subtitle, on its own
+                        // line under the heading.
+                        let heading = |n: &String| n.len() == 2 && n.starts_with('h');
+                        if self.html_styles.iter().any(heading) {
+                            self.hard_break();
+                        }
+                        self.styled_html(name, self.theme.small);
+                    }
+                    "sub" | "sup" => self.styled_html(name, self.theme.small),
                     "img" => {
                         let src = token.attr("src").unwrap_or("").to_owned();
                         let alt = token.attr("alt").unwrap_or("").to_owned();

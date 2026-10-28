@@ -174,3 +174,9 @@ fn headings_are_listed() {
         .collect();
     assert_eq!(text, "## One two");
 }
+
+#[test]
+fn small_print_in_a_heading_is_a_subtitle() {
+    let md = "<h2>\n    2026\n    <small><a href=\"/x\">text</a></small>\n</h2>\n\nafter";
+    assert_eq!(lines(md, 40), ["2026", "text", "", "after"]);
+}
