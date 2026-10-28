@@ -19,6 +19,5 @@ jobs:
       - run: cargo clippy --all-targets -- -D warnings
       - run: cargo test
       - run: cargo test --no-default-features
-      - run: cargo test --no-default-features --features highlight
       - run: cargo test --all-features
       - run: cargo build --target wasm32-unknown-unknown
