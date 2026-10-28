@@ -55,6 +55,8 @@ pub(crate) struct Renderer<'t> {
 
     code: Option<(String, String)>,
     html: Option<String>,
+    /// The text of an HTML `<pre>`, kept as is until it closes.
+    pre: Option<String>,
     /// Open HTML elements that pushed a style, so closing them pops it.
     html_styles: Vec<String>,
     image: Option<(String, String)>,
@@ -77,6 +79,7 @@ impl<'t> Renderer<'t> {
             lists: Vec::new(),
             gap: false,
             code: None,
+            pre: None,
             html: None,
             html_styles: Vec::new(),
             image: None,
@@ -670,6 +673,21 @@ impl<'t> Renderer<'t> {
     /// Reads the text and links out of a chunk of HTML.
     fn html_tokens(&mut self, html: &str) {
         for token in html::tokenize(html) {
+            // Inside a `<pre>`, only its text and its end matter.
+            if let Some(pre) = &mut self.pre {
+                match &token {
+                    Token::Text(text) => pre.push_str(text),
+                    Token::Close(name) if name == "pre" => {
+                        let pre = self.pre.take().unwrap_or_default();
+                        // Like a browser, skip one newline right after `<pre>`.
+                        let pre = pre.strip_prefix('\n').unwrap_or(&pre);
+                        self.code = Some((String::new(), pre.to_owned()));
+                        self.code_block();
+                    }
+                    _ => {}
+                }
+                continue;
+            }
             match &token {
                 Token::Text(text) => self.text(text.clone()),
                 Token::Open { name, .. } => match name.as_str() {
@@ -680,6 +698,10 @@ impl<'t> Renderer<'t> {
                         }
                     }
                     "br" => self.inline.push(Inline::Break),
+                    "pre" => {
+                        self.begin_block();
+                        self.pre = Some(String::new());
+                    }
                     "li" => {
                         // Like a Markdown item, wrapped lines hang under
                         // the text, not the bullet.

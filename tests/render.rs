@@ -205,3 +205,13 @@ fn html_headings_after_html_lists_get_a_gap() {
     let md = "<ul><li>a</li></ul><h2>B</h2>";
     assert_eq!(lines(md, 9), ["• a", "", "B"]);
 }
+
+#[test]
+fn html_pre_keeps_its_lines() {
+    let md = "<pre><code>$ fortune\n<span>a  b</span>\n\n$ cd x</code></pre>\n\nafter";
+    let text = lines(md, 40);
+    assert_eq!(
+        text.iter().map(|l| l.trim_end()).collect::<Vec<_>>(),
+        [" $ fortune", " a  b", "", " $ cd x", "", "after"]
+    );
+}
