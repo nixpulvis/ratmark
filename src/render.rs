@@ -341,6 +341,10 @@ impl<'t> Renderer<'t> {
             }
             Tag::BlockQuote(_) => {
                 self.begin_block();
+                // The gap before a quote goes outside it, without its bar.
+                if std::mem::take(&mut self.gap) && !self.lines.is_empty() {
+                    self.blank();
+                }
                 let bar = Piece::new("▎ ", self.theme.quote_marker);
                 self.prefixes.push(Prefix {
                     first: vec![bar.clone()],

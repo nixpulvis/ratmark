@@ -44,6 +44,11 @@ fn quotes_keep_their_bar_when_wrapped() {
 }
 
 #[test]
+fn quotes_start_after_a_plain_gap() {
+    assert_eq!(lines("a\n\n> b\n>\n> c", 20), ["a", "", "▎ b", "▎", "▎ c"]);
+}
+
+#[test]
 fn code_blocks_fill_the_width() {
     let rendered = render("```\nfn x\n```", 12, &Theme::default());
     let line = &rendered.lines[0];
