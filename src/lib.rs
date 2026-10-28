@@ -25,8 +25,8 @@
 //!
 //! The `kramdown` feature, also off by default, understands a few habits of
 //! Markdown written for kramdown, Jekyll's default: attribute lists like
-//! `{:.no_toc}` are dropped, `{:toc}` lists become tables of contents, and Markdown inside `markdown="1"` elements is
-//! rendered as Markdown.
+//! `{:.no_toc}` are dropped, `{:toc}` lists become tables of contents, and
+//! Markdown inside `markdown="1"` elements is rendered as Markdown.
 //!
 //! [Ratatui]: https://ratatui.rs
 
