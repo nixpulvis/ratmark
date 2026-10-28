@@ -17,7 +17,7 @@
 //! CommonMark plus tables, footnotes, strikethrough, task lists and math are
 //! supported. HTML embedded in the Markdown is read for its
 //! text and links. Code blocks are syntax highlighted with the `highlight`
-//! feature, which is on by default.
+//! feature, which is off by default.
 //!
 //! The `front-matter` feature, off by default, splits YAML or TOML front
 //! matter off the top of a document instead of rendering it. See

@@ -24,10 +24,10 @@ wrapped text. For drawing a document some other way, `ratmark::render` returns
 the wrapped lines and link positions directly.
 
 It handles CommonMark plus tables, footnotes, strikethrough, task lists and
-math. Code blocks are syntax highlighted with [syntect], through
-the default `highlight` feature. That uses syntect's pure Rust regex engine,
-so ratmark also builds for `wasm32-unknown-unknown` and works in the browser
-with something like [Ratzilla].
+math. Code blocks can be syntax highlighted with [syntect], through the
+`highlight` feature, which is off by default. It uses syntect's pure Rust regex
+engine, so ratmark also builds for `wasm32-unknown-unknown` and works in the
+browser with something like [Ratzilla].
 
 Markdown written for real sites tends to have HTML mixed in, so ratmark reads
 the text and links out of it instead of printing tags.
