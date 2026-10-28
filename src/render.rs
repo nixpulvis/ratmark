@@ -842,7 +842,7 @@ fn heading_index(level: HeadingLevel) -> usize {
     }
 }
 
-#[cfg(feature = "highlight")]
+#[cfg(feature = "syntax")]
 fn highlighted(code: &str, lang: &str, theme: &Theme) -> Option<Vec<Vec<Piece>>> {
     let name = theme.syntax?;
     let lines = crate::highlight::highlight(code, lang, name)?;
@@ -858,7 +858,7 @@ fn highlighted(code: &str, lang: &str, theme: &Theme) -> Option<Vec<Vec<Piece>>>
     )
 }
 
-#[cfg(not(feature = "highlight"))]
+#[cfg(not(feature = "syntax"))]
 fn highlighted(_: &str, _: &str, _: &Theme) -> Option<Vec<Vec<Piece>>> {
     None
 }

@@ -13,7 +13,7 @@ categories = ["command-line-interface", "text-processing"]
 default = []
 # Syntax highlighting for fenced code blocks, using syntect's pure Rust regex
 # engine so it also builds for wasm32.
-highlight = ["dep:syntect"]
+syntax = ["dep:syntect"]
 # Split YAML or TOML front matter off the top of documents.
 front-matter = []
 # Understand Markdown written for kramdown, like Jekyll sites.

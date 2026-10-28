@@ -25,7 +25,7 @@ the wrapped lines and link positions directly.
 
 It handles CommonMark plus tables, footnotes, strikethrough, task lists and
 math. Code blocks can be syntax highlighted with [syntect], through the
-`highlight` feature, which is off by default. It uses syntect's pure Rust regex
+`syntax` feature, which is off by default. It uses syntect's pure Rust regex
 engine, so ratmark also builds for `wasm32-unknown-unknown` and works in the
 browser with something like [Ratzilla].
 

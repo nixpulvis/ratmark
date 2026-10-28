@@ -17,7 +17,7 @@
 //! CommonMark plus tables, footnotes, strikethrough, task lists and math are
 //! supported. With the `html` feature, HTML embedded in the Markdown is read
 //! for its text, links and simple formatting, and without it HTML is left
-//! out. Code blocks are syntax highlighted with the `highlight`
+//! out. Code blocks are syntax highlighted with the `syntax`
 //! feature, which is off by default.
 //!
 //! The `front-matter` feature, off by default, splits YAML or TOML front
@@ -35,7 +35,7 @@ use ratatui_core::text::{Line, Text};
 
 #[cfg(feature = "front-matter")]
 pub mod front_matter;
-#[cfg(feature = "highlight")]
+#[cfg(feature = "syntax")]
 mod highlight;
 #[cfg(feature = "html")]
 mod html;

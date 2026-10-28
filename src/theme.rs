@@ -33,7 +33,7 @@ pub struct Theme {
     pub table_row_rules: bool,
     /// Text from `<small>` tags, used for things like dates under a title.
     pub small: Style,
-    /// The syntect theme used to color code blocks, when the `highlight`
+    /// The syntect theme used to color code blocks, when the `syntax`
     /// feature is on. Only its foreground colors are used.
     pub syntax: Option<&'static str>,
 }
