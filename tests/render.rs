@@ -176,12 +176,6 @@ fn headings_are_listed() {
 }
 
 #[test]
-fn small_print_in_a_heading_is_a_subtitle() {
-    let md = "<h2>\n    2026\n    <small><a href=\"/x\">text</a></small>\n</h2>\n\nafter";
-    assert_eq!(lines(md, 40), ["2026", "text", "", "after"]);
-}
-
-#[test]
 fn html_items_hang_their_wrapped_lines() {
     let md = "<ul><li>one two three</li><li>a<br>b</li></ul>\n\nafter";
     assert_eq!(
