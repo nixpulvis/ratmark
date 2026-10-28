@@ -706,7 +706,9 @@ impl<'t> Renderer<'t> {
                     "h1" | "h2" | "h3" | "h4" | "h5" | "h6" => {
                         // A blank line before a heading, as in Markdown.
                         self.hard_break();
-                        if !self.inline.is_empty() {
+                        if self.inline.is_empty() {
+                            self.gap = true;
+                        } else {
                             self.inline.push(Inline::Break);
                         }
                         let level = usize::from(name.as_bytes()[1] - b'1');

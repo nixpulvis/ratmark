@@ -189,3 +189,9 @@ fn html_items_hang_their_wrapped_lines() {
         ["• one two", "  three", "• a", "  b", "", "after"]
     );
 }
+
+#[test]
+fn html_headings_after_html_lists_get_a_gap() {
+    let md = "<ul><li>a</li></ul><h2>B</h2>";
+    assert_eq!(lines(md, 9), ["• a", "", "B"]);
+}
