@@ -150,3 +150,19 @@ fn corpus() {
     }
     assert!(count > 0, "no Markdown found");
 }
+
+#[test]
+fn headings_are_listed() {
+    let rendered = render("intro\n\n## One *two*\n\ntext", 40, &Theme::default());
+    let heading = &rendered.headings[0];
+    assert_eq!(
+        (heading.level, heading.text.as_str(), heading.line),
+        (2, "One two", 2)
+    );
+    let text: String = rendered.lines[2]
+        .spans
+        .iter()
+        .map(|s| s.content.as_ref())
+        .collect();
+    assert_eq!(text, "## One two");
+}

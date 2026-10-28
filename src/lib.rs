@@ -43,6 +43,8 @@ pub struct Rendered {
     pub links: Vec<Link>,
     /// The front matter between `---` or `+++` lines at the top, unparsed.
     pub front_matter: Option<String>,
+    /// Every heading, in order, for jumping to a section or listing them.
+    pub headings: Vec<Heading>,
 }
 
 impl Rendered {
@@ -59,6 +61,15 @@ impl Rendered {
                 .any(|r| r.line == line && (r.start..r.end).contains(&x))
         })
     }
+}
+
+/// A heading and the line it starts on.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Heading {
+    /// 1 for `#` through 6 for `######`.
+    pub level: u8,
+    pub text: String,
+    pub line: usize,
 }
 
 /// A link and the places it was drawn.

@@ -7,7 +7,7 @@ use unicode_width::UnicodeWidthStr;
 
 use crate::html::{self, Token};
 use crate::wrap::{Inline, Piece, wrap};
-use crate::{Link, Region, Rendered, Theme};
+use crate::{Heading, Link, Region, Rendered, Theme};
 
 pub(crate) fn options() -> Options {
     Options::ENABLE_TABLES
@@ -44,6 +44,7 @@ pub(crate) struct Renderer<'t> {
     lines: Vec<Line<'static>>,
     links: Vec<Link>,
     front_matter: Option<String>,
+    headings: Vec<Heading>,
 
     inline: Vec<Inline>,
     styles: Vec<Style>,
@@ -70,6 +71,7 @@ impl<'t> Renderer<'t> {
             lines: Vec::new(),
             links: Vec::new(),
             front_matter: None,
+            headings: Vec::new(),
             inline: Vec::new(),
             styles: vec![theme.text],
             link_stack: Vec::new(),
@@ -95,6 +97,7 @@ impl<'t> Renderer<'t> {
             lines: self.lines,
             links: self.links,
             front_matter: self.front_matter,
+            headings: self.headings,
         }
     }
 
@@ -435,8 +438,24 @@ impl<'t> Renderer<'t> {
     fn end(&mut self, tag: TagEnd) {
         match tag {
             TagEnd::Paragraph => self.end_block(),
-            TagEnd::Heading(_) => {
+            TagEnd::Heading(level) => {
                 self.pop_style();
+                // Skip the `#` marks, the first piece.
+                let text: String = self
+                    .inline
+                    .iter()
+                    .skip(1)
+                    .filter_map(|i| match i {
+                        Inline::Piece(p) => Some(p.text.as_str()),
+                        Inline::Break => None,
+                    })
+                    .collect();
+                let line = self.lines.len() + usize::from(self.gap && !self.lines.is_empty());
+                self.headings.push(Heading {
+                    level: heading_index(level.into()) as u8 + 1,
+                    text: text.trim().to_owned(),
+                    line,
+                });
                 self.end_block();
             }
             TagEnd::BlockQuote(_) => {
