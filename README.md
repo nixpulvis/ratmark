@@ -3,13 +3,25 @@
 Render Markdown into [Ratatui] text.
 
 ```rust
-let rendered = ratmark::render(markdown, area.width, &ratmark::Theme::default());
-frame.render_widget(Paragraph::new(rendered.text()).scroll((offset, 0)), area);
+let theme = ratmark::Theme::default();
+let mut state = ratmark::MarkdownState::new(markdown);
+
+// Each frame:
+frame.render_stateful_widget(ratmark::MarkdownView::new(&theme), area, &mut state);
+
+// On input:
+state.scroll_by(1);
+state.focus_next();
+if let Some(link) = state.focused() { open(&link.url) }
+if let Some(link) = state.link_at(mouse.column, mouse.row) { open(&link.url) }
 ```
 
-`render` lays a document out for a given width and returns its lines, already
-wrapped, along with where every link landed. A client can use those regions to
-make links clickable or let the keyboard move between them.
+`MarkdownView` lays the document out to fit, again whenever the width
+changes, and draws it scrolled with the focused link highlighted. Ratatui
+cells can't carry a URL, so the state keeps track of where every link landed,
+which is what makes keyboard focus and clicks work on links in the middle of
+wrapped text. For drawing a document some other way, `ratmark::render` returns
+the wrapped lines and link positions directly.
 
 It handles CommonMark plus tables, footnotes, strikethrough, task lists and
 math. Code blocks are syntax highlighted with [syntect], through

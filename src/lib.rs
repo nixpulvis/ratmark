@@ -1,8 +1,13 @@
 //! Render Markdown into [Ratatui] text.
 //!
-//! [`render`] lays a document out for a given width and returns its lines,
-//! ready for a `Paragraph`, along with where each link landed so a client can
-//! make them clickable or let the keyboard move between them.
+//! [`MarkdownView`] is a widget that shows a document, scrolled, with links
+//! that can be focused from the keyboard or found under a click. Its
+//! [`MarkdownState`] holds the document and lays it out again whenever the
+//! width changes.
+//!
+//! Underneath, [`render`] lays a document out for a given width and returns
+//! its lines along with where each link landed, for drawing it some other
+//! way.
 //!
 //! ```
 //! let rendered = ratmark::render("# Hi\n\nSee [the docs](https://docs.rs).", 40, &ratmark::Theme::default());
@@ -36,9 +41,11 @@ mod html;
 mod kramdown;
 mod render;
 mod theme;
+mod view;
 mod wrap;
 
 pub use theme::Theme;
+pub use view::{MarkdownState, MarkdownView};
 
 /// Lays `markdown` out in lines at most `width` columns wide.
 ///
