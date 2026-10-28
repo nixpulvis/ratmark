@@ -29,6 +29,10 @@ the default `highlight` feature. That uses syntect's pure Rust regex engine,
 so ratmark also builds for `wasm32-unknown-unknown` and works in the browser
 with something like [Ratzilla].
 
+syntect's bundled syntaxes and themes come with the `default-syntaxes`
+feature, also on by default, and add a megabyte or two. To keep a build
+small, turn it off and pass `highlight::set` only the syntaxes you need.
+
 Markdown written for real sites tends to have HTML mixed in, so ratmark reads
 the text and links out of it instead of printing tags.
 
