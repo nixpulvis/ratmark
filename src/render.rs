@@ -5,6 +5,7 @@ use ratatui_core::style::Style;
 use ratatui_core::text::{Line, Span};
 use unicode_width::UnicodeWidthStr;
 
+#[cfg(feature = "html")]
 use crate::html::{self, Token};
 use crate::wrap::{Inline, Piece, wrap};
 use crate::{Heading, Link, Region, Rendered, Theme};
@@ -47,6 +48,7 @@ pub(crate) struct Renderer<'t> {
     styles: Vec<Style>,
     link_stack: Vec<usize>,
     prefixes: Vec<Prefix>,
+    #[cfg(feature = "html")]
     /// HTML `<li>`s open, each with a prefix to pop when it closes.
     html_items: usize,
     lists: Vec<Option<u64>>,
@@ -55,6 +57,7 @@ pub(crate) struct Renderer<'t> {
 
     code: Option<(String, String)>,
     html: Option<String>,
+    #[cfg(feature = "html")]
     /// The text of an HTML `<pre>`, kept as is until it closes.
     pre: Option<String>,
     /// Open HTML elements that pushed a style, so closing them pops it.
@@ -75,10 +78,12 @@ impl<'t> Renderer<'t> {
             styles: vec![theme.text],
             link_stack: Vec::new(),
             prefixes: Vec::new(),
+            #[cfg(feature = "html")]
             html_items: 0,
             lists: Vec::new(),
             gap: false,
             code: None,
+            #[cfg(feature = "html")]
             pre: None,
             html: None,
             html_styles: Vec::new(),
@@ -133,6 +138,7 @@ impl<'t> Renderer<'t> {
         self.piece(text, style);
     }
 
+    #[cfg(feature = "html")]
     /// Ends the current line, unless nothing but whitespace is on it.
     fn hard_break(&mut self) {
         let blank = self
@@ -670,7 +676,12 @@ impl<'t> Renderer<'t> {
         self.gap = true;
     }
 
+    /// Without the `html` feature, HTML is left out.
+    #[cfg(not(feature = "html"))]
+    fn html_tokens(&mut self, _html: &str) {}
+
     /// Reads the text and links out of a chunk of HTML.
+    #[cfg(feature = "html")]
     fn html_tokens(&mut self, html: &str) {
         for token in html::tokenize(html) {
             // Inside a `<pre>`, only its text and its end matter.
@@ -789,6 +800,7 @@ impl<'t> Renderer<'t> {
         }
     }
 
+    #[cfg(feature = "html")]
     fn styled_html(&mut self, name: &str, style: Style) {
         self.html_styles.push(name.to_owned());
         self.push_style(style);

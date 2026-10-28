@@ -18,12 +18,16 @@ highlight = ["dep:syntect"]
 front-matter = []
 # Understand Markdown written for kramdown, like Jekyll sites.
 kramdown = []
+# Show the text, links and simple formatting of HTML in the Markdown, read
+# with html5gum. Without it, HTML is left out.
+html = ["dep:html5gum"]
 
 [dependencies]
 pulldown-cmark = { version = "0.13", default-features = false }
 ratatui-core = "0.1"
 unicode-width = "0.2"
 syntect = { version = "5.3", optional = true, default-features = false, features = ["default-syntaxes", "default-themes", "regex-fancy"] }
+html5gum = { version = "0.9", optional = true }
 
 [dev-dependencies]
 unicode-width = "0.2"

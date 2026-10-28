@@ -29,8 +29,10 @@ math. Code blocks can be syntax highlighted with [syntect], through the
 engine, so ratmark also builds for `wasm32-unknown-unknown` and works in the
 browser with something like [Ratzilla].
 
-Markdown written for real sites tends to have HTML mixed in, so ratmark reads
-the text and links out of it instead of printing tags.
+Markdown written for real sites tends to have HTML mixed in. With the `html`
+feature, off by default, ratmark reads the text, links and simple formatting
+out of it with [html5gum]'s tokenizer instead of printing tags. Without it,
+HTML is left out.
 
 Two optional features help with Markdown from static sites. `front-matter`
 splits YAML or TOML front matter off the top of a document and has a small
@@ -70,5 +72,6 @@ Licensed under either of [Apache License, Version 2.0](LICENSE-APACHE) or
 
 [Ratatui]: https://ratatui.rs
 [syntect]: https://github.com/trishume/syntect
+[html5gum]: https://github.com/untitaker/html5gum
 [Ratzilla]: https://github.com/orhun/ratzilla
 [avid-rustacean]: https://github.com/TylerBloom/avid-rustacean

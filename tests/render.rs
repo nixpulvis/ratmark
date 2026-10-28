@@ -35,14 +35,38 @@ fn headings_can_show_their_marks() {
         heading_marker: Some(Default::default()),
         ..Theme::default()
     };
-    let rendered = render("## Hi there\n\n<h3>And here</h3>", 40, &theme);
-    let text: Vec<String> = rendered
+    let rendered = render("## Hi there", 40, &theme);
+    let text: String = rendered.lines[0]
+        .spans
+        .iter()
+        .map(|s| s.content.as_ref())
+        .collect();
+    assert_eq!(text, "## Hi there");
+    assert_eq!(rendered.headings[0].text, "Hi there");
+}
+
+#[cfg(feature = "html")]
+#[test]
+fn html_headings_show_marks_too() {
+    let theme = Theme {
+        heading_marker: Some(Default::default()),
+        ..Theme::default()
+    };
+    let text: Vec<String> = render("<h3>And here</h3>", 40, &theme)
         .lines
         .iter()
         .map(|l| l.spans.iter().map(|s| s.content.as_ref()).collect())
         .collect();
-    assert_eq!(text, ["## Hi there", "", "### And here"]);
-    assert_eq!(rendered.headings[0].text, "Hi there");
+    assert_eq!(text, ["### And here"]);
+}
+
+#[cfg(not(feature = "html"))]
+#[test]
+fn html_is_left_out() {
+    assert_eq!(
+        lines("<ul><li>a</li></ul>\n\nafter <b>b</b>", 40),
+        ["after b"]
+    );
 }
 
 #[test]
@@ -103,6 +127,7 @@ fn links_record_where_they_land() {
     assert_eq!(rendered.link_at(0, 0), None);
 }
 
+#[cfg(feature = "html")]
 #[test]
 fn html_links_and_lists() {
     let md = "<ul>\n<li><a href=\"/a\">A</a> <small>1 word</small></li>\n<li>B</li>\n</ul>";
@@ -191,6 +216,7 @@ fn headings_are_listed() {
     assert_eq!(text, "One two");
 }
 
+#[cfg(feature = "html")]
 #[test]
 fn html_items_hang_their_wrapped_lines() {
     let md = "<ul><li>one two three</li><li>a<br>b</li></ul>\n\nafter";
@@ -200,12 +226,14 @@ fn html_items_hang_their_wrapped_lines() {
     );
 }
 
+#[cfg(feature = "html")]
 #[test]
 fn html_headings_after_html_lists_get_a_gap() {
     let md = "<ul><li>a</li></ul><h2>B</h2>";
     assert_eq!(lines(md, 9), ["• a", "", "B"]);
 }
 
+#[cfg(feature = "html")]
 #[test]
 fn html_pre_keeps_its_lines() {
     let md = "<pre><code>$ fortune\n<span>a  b</span>\n\n$ cd x</code></pre>\n\nafter";
