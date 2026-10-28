@@ -452,7 +452,7 @@ impl<'t> Renderer<'t> {
                     .collect();
                 let line = self.lines.len() + usize::from(self.gap && !self.lines.is_empty());
                 self.headings.push(Heading {
-                    level: heading_index(level.into()) as u8 + 1,
+                    level: heading_index(level) as u8 + 1,
                     text: text.trim().to_owned(),
                     line,
                 });
