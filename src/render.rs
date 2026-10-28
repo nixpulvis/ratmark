@@ -652,7 +652,8 @@ impl<'t> Renderer<'t> {
                 }
                 self.emit(pieces);
             }
-            if r == 0 && table.rows.len() > 1 {
+            let last = r + 1 == table.rows.len();
+            if !last && (r == 0 || self.theme.table_row_rules) {
                 let rule = widths
                     .iter()
                     .map(|w| "─".repeat(*w))

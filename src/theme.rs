@@ -28,6 +28,8 @@ pub struct Theme {
     pub footnote: Style,
     pub table_border: Style,
     pub table_header: Style,
+    /// Draw a rule between body rows too, not just under the header.
+    pub table_row_rules: bool,
     /// Text from `<small>` tags, used for things like dates under a title.
     pub small: Style,
     /// The syntect theme used to color code blocks, when the `highlight`
@@ -85,6 +87,7 @@ impl Theme {
             footnote: Style::new().fg(PINK),
             table_border: Style::new().fg(GRAY),
             table_header: Style::new().fg(YELLOW).add_modifier(bold),
+            table_row_rules: true,
             small: Style::new().fg(GRAY),
             syntax: Some("base16-eighties.dark"),
         }
@@ -121,6 +124,7 @@ impl Theme {
             footnote: Style::new(),
             table_border: dim,
             table_header: bold,
+            table_row_rules: true,
             small: dim,
             syntax: None,
         }
