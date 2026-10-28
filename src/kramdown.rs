@@ -60,10 +60,18 @@ pub(crate) fn preprocess(markdown: &str) -> Cow<'_, str> {
     Cow::Owned(out)
 }
 
-/// Whether `text` is a kramdown attribute list, like `{:.no_toc}`.
-pub(crate) fn is_attribute_list(text: &str) -> bool {
-    let trimmed = text.trim();
-    trimmed.starts_with("{:") && trimmed.ends_with('}')
+/// Drops kramdown attribute lists, like `{:.no_toc}`, from text. They come
+/// alone on a line after a block, or right after a span like `` `code` ``,
+/// which puts them at the start of the following text.
+pub(crate) fn strip_attribute_lists(text: &str) -> &str {
+    let mut text = text;
+    while let Some(rest) = text.strip_prefix("{:") {
+        match rest.find('}') {
+            Some(end) => text = &rest[end + 1..],
+            None => break,
+        }
+    }
+    text
 }
 
 #[cfg(test)]
@@ -77,6 +85,14 @@ mod tests {
             preprocess(src),
             "<div markdown=\"1\">\n\n```rust\n</div>\n```\n<div>\n</div>\n\n</div>\nafter\n"
         );
+    }
+
+    #[test]
+    fn attribute_lists() {
+        assert_eq!(strip_attribute_lists("{:.no_toc}"), "");
+        assert_eq!(strip_attribute_lists("{:.a}{: #b}: rest"), ": rest");
+        assert_eq!(strip_attribute_lists("text {:.a}"), "text {:.a}");
+        assert_eq!(strip_attribute_lists("{:unclosed"), "{:unclosed");
     }
 
     #[test]

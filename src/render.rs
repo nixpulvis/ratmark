@@ -287,10 +287,10 @@ impl<'t> Renderer<'t> {
                 // kramdown attribute lists, like `{:.no_toc}`, mean nothing
                 // here and would otherwise show up as text.
                 #[cfg(feature = "kramdown")]
-                if crate::kramdown::is_attribute_list(&text) {
-                    return;
+                let text = crate::kramdown::strip_attribute_lists(&text);
+                if !text.is_empty() {
+                    self.text(text.to_string());
                 }
-                self.text(text.into_string());
             }
             Event::Code(code) => {
                 let style = self.style().patch(self.theme.code);
