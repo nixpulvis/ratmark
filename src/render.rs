@@ -47,6 +47,8 @@ pub(crate) struct Renderer<'t> {
     styles: Vec<Style>,
     link_stack: Vec<usize>,
     prefixes: Vec<Prefix>,
+    /// HTML `<li>`s open, each with a prefix to pop when it closes.
+    html_items: usize,
     lists: Vec<Option<u64>>,
     /// Whether a blank line is owed before the next block.
     gap: bool,
@@ -71,6 +73,7 @@ impl<'t> Renderer<'t> {
             styles: vec![theme.text],
             link_stack: Vec::new(),
             prefixes: Vec::new(),
+            html_items: 0,
             lists: Vec::new(),
             gap: false,
             code: None,
@@ -462,6 +465,7 @@ impl<'t> Renderer<'t> {
             }
             TagEnd::HtmlBlock => {
                 let html = self.html.take().unwrap_or_default();
+                let before = self.lines.len();
                 self.html_tokens(&html);
                 // Styles left open by unbalanced HTML stop with the block.
                 for name in std::mem::take(&mut self.html_styles) {
@@ -477,7 +481,7 @@ impl<'t> Renderer<'t> {
                     Inline::Piece(p) => p.text.trim().is_empty(),
                     Inline::Break => true,
                 });
-                if empty {
+                if empty && self.lines.len() == before {
                     self.inline.clear();
                 } else {
                     self.end_block();
@@ -679,8 +683,16 @@ impl<'t> Renderer<'t> {
                     }
                     "br" => self.inline.push(Inline::Break),
                     "li" => {
-                        self.hard_break();
-                        self.piece(BULLETS[0], self.theme.list_marker);
+                        // Like a Markdown item, wrapped lines hang under
+                        // the text, not the bullet.
+                        self.flush();
+                        let indent = " ".repeat(BULLETS[0].width());
+                        self.prefixes.push(Prefix {
+                            first: vec![Piece::new(BULLETS[0], self.theme.list_marker)],
+                            rest: vec![Piece::new(indent, self.theme.text)],
+                            used: false,
+                        });
+                        self.html_items += 1;
                     }
                     "p" | "div" | "ul" | "ol" | "tr" | "table" | "blockquote" | "section"
                     | "article" | "header" | "footer" | "figure" | "dl" | "dt" | "dd" => {
@@ -729,6 +741,11 @@ impl<'t> Renderer<'t> {
                     _ => {}
                 },
                 Token::Close(name) => match name.as_str() {
+                    "li" if self.html_items > 0 => {
+                        self.flush();
+                        self.prefixes.pop();
+                        self.html_items -= 1;
+                    }
                     "p" | "div" | "li" | "ul" | "ol" | "tr" | "table" | "blockquote"
                     | "section" | "article" | "header" | "footer" | "figure" | "dl" | "dt"
                     | "dd" => self.hard_break(),
