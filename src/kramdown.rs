@@ -60,6 +60,12 @@ pub(crate) fn preprocess(markdown: &str) -> Cow<'_, str> {
     Cow::Owned(out)
 }
 
+/// Whether `text` is a kramdown attribute list, like `{:.no_toc}`.
+pub(crate) fn is_attribute_list(text: &str) -> bool {
+    let trimmed = text.trim();
+    trimmed.starts_with("{:") && trimmed.ends_with('}')
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

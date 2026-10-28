@@ -11,17 +11,22 @@ frame.render_widget(Paragraph::new(rendered.text()).scroll((offset, 0)), area);
 wrapped, along with where every link landed. A client can use those regions to
 make links clickable or let the keyboard move between them.
 
-It handles CommonMark plus tables, footnotes, strikethrough, task lists, math
-and front matter. Code blocks are syntax highlighted with [syntect], through
+It handles CommonMark plus tables, footnotes, strikethrough, task lists and
+math. Code blocks are syntax highlighted with [syntect], through
 the default `highlight` feature. That uses syntect's pure Rust regex engine,
 so ratmark also builds for `wasm32-unknown-unknown` and works in the browser
 with something like [Ratzilla].
 
 Markdown written for real sites tends to have HTML mixed in, so ratmark reads
-the text and links out of it instead of printing tags. It also understands a
-couple of kramdown habits, since that's what Jekyll uses: attribute lists like
-`{:.no_toc}` are dropped, and Markdown inside `markdown="1"` elements is
-rendered as Markdown.
+the text and links out of it instead of printing tags.
+
+Two optional features help with Markdown from static sites. `front-matter`
+splits YAML or TOML front matter off the top of a document and has a small
+helper for reading values like the title.
+
+The `kramdown` feature understands a couple of kramdown habits, since
+that's what Jekyll uses. Attribute lists like `{:.no_toc}` are dropped, and
+Markdown inside `markdown="1"` elements is rendered as Markdown.
 
 Two themes come with it. `Theme::gruvbox()` is the default, and
 `Theme::plain()` uses no colors so the terminal's own palette shows through.
@@ -40,7 +45,7 @@ browser. ratmark is a fresh implementation, not a copy of that code.
 several widths, checking that nothing panics and no line is too wide.
 
 ```sh
-RATMARK_CORPUS=~/site/_site cargo test corpus
+RATMARK_CORPUS=~/site/_site cargo test --features kramdown corpus
 ```
 
 `cargo run --example dump -- FILE WIDTH` prints a file as rendered, without

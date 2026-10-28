@@ -9,19 +9,30 @@
 //! assert_eq!(rendered.links[0].url, "https://docs.rs");
 //! ```
 //!
-//! CommonMark plus tables, footnotes, strikethrough, task lists, math and
-//! front matter are supported. HTML embedded in the Markdown is read for its
-//! text and links. A few kramdown habits are understood too, like attribute
-//! lists and Markdown inside `markdown="1"` elements. Code blocks are syntax highlighted with the `highlight`
+//! CommonMark plus tables, footnotes, strikethrough, task lists and math are
+//! supported. HTML embedded in the Markdown is read for its
+//! text and links. Code blocks are syntax highlighted with the `highlight`
 //! feature, which is on by default.
+//!
+//! The `front-matter` feature, off by default, splits YAML or TOML front
+//! matter off the top of a document instead of rendering it. See
+//! [`front_matter`].
+//!
+//! The `kramdown` feature, also off by default, understands a few habits of
+//! Markdown written for kramdown, Jekyll's default: attribute lists like
+//! `{:.no_toc}` are dropped, and Markdown inside `markdown="1"` elements is
+//! rendered as Markdown.
 //!
 //! [Ratatui]: https://ratatui.rs
 
 use ratatui_core::text::{Line, Text};
 
+#[cfg(feature = "front-matter")]
+pub mod front_matter;
 #[cfg(feature = "highlight")]
 mod highlight;
 mod html;
+#[cfg(feature = "kramdown")]
 mod kramdown;
 mod render;
 mod theme;
@@ -30,8 +41,19 @@ mod wrap;
 pub use theme::Theme;
 
 /// Lays `markdown` out in lines at most `width` columns wide.
+///
+/// With the `front-matter` feature, front matter at the top is split off
+/// first and returned in [`Rendered::front_matter`].
 pub fn render(markdown: &str, width: u16, theme: &Theme) -> Rendered {
-    render::Renderer::new(theme, width).run(markdown)
+    #[cfg(feature = "front-matter")]
+    let (front, markdown) = front_matter::split(markdown);
+    #[allow(unused_mut)]
+    let mut rendered = render::Renderer::new(theme, width).run(markdown);
+    #[cfg(feature = "front-matter")]
+    {
+        rendered.front_matter = front;
+    }
+    rendered
 }
 
 /// A rendered document.
@@ -41,8 +63,9 @@ pub struct Rendered {
     pub lines: Vec<Line<'static>>,
     /// Every link, in the order they appear.
     pub links: Vec<Link>,
-    /// The front matter between `---` or `+++` lines at the top, unparsed.
-    pub front_matter: Option<String>,
+    /// The front matter between `---` or `+++` lines at the top.
+    #[cfg(feature = "front-matter")]
+    pub front_matter: Option<front_matter::FrontMatter>,
     /// Every heading, in order, for jumping to a section or listing them.
     pub headings: Vec<Heading>,
 }

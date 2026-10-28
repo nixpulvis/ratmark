@@ -17,8 +17,6 @@ pub(crate) fn options() -> Options {
         | Options::ENABLE_MATH
         | Options::ENABLE_SMART_PUNCTUATION
         | Options::ENABLE_HEADING_ATTRIBUTES
-        | Options::ENABLE_YAML_STYLE_METADATA_BLOCKS
-        | Options::ENABLE_PLUSES_DELIMITED_METADATA_BLOCKS
 }
 
 const BULLETS: [&str; 3] = ["• ", "◦ ", "▪ "];
@@ -43,7 +41,6 @@ pub(crate) struct Renderer<'t> {
     width: usize,
     lines: Vec<Line<'static>>,
     links: Vec<Link>,
-    front_matter: Option<String>,
     headings: Vec<Heading>,
 
     inline: Vec<Inline>,
@@ -60,7 +57,6 @@ pub(crate) struct Renderer<'t> {
     html_styles: Vec<String>,
     image: Option<(String, String)>,
     table: Option<Table>,
-    metadata: bool,
 }
 
 impl<'t> Renderer<'t> {
@@ -70,7 +66,6 @@ impl<'t> Renderer<'t> {
             width: usize::from(width).max(1),
             lines: Vec::new(),
             links: Vec::new(),
-            front_matter: None,
             headings: Vec::new(),
             inline: Vec::new(),
             styles: vec![theme.text],
@@ -83,21 +78,25 @@ impl<'t> Renderer<'t> {
             html_styles: Vec::new(),
             image: None,
             table: None,
-            metadata: false,
         }
     }
 
     pub fn run(mut self, markdown: &str) -> Rendered {
+        #[cfg(feature = "kramdown")]
         let markdown = crate::kramdown::preprocess(markdown);
-        for event in Parser::new_ext(&markdown, options()) {
+        #[cfg(feature = "kramdown")]
+        let markdown: &str = &markdown;
+        for event in Parser::new_ext(markdown, options()) {
             self.event(event);
         }
         self.flush();
         Rendered {
             lines: self.lines,
             links: self.links,
-            front_matter: self.front_matter,
             headings: self.headings,
+            // Filled in by `render`, which splits it off first.
+            #[cfg(feature = "front-matter")]
+            front_matter: None,
         }
     }
 
@@ -264,14 +263,6 @@ impl<'t> Renderer<'t> {
     }
 
     fn event(&mut self, event: Event<'_>) {
-        if self.metadata {
-            match event {
-                Event::Text(text) => self.front_matter.get_or_insert_default().push_str(&text),
-                Event::End(TagEnd::MetadataBlock(_)) => self.metadata = false,
-                _ => {}
-            }
-            return;
-        }
         if let Some((_, code)) = &mut self.code {
             match event {
                 Event::Text(text) => code.push_str(&text),
@@ -295,8 +286,8 @@ impl<'t> Renderer<'t> {
             Event::Text(text) => {
                 // kramdown attribute lists, like `{:.no_toc}`, mean nothing
                 // here and would otherwise show up as text.
-                let trimmed = text.trim();
-                if trimmed.starts_with("{:") && trimmed.ends_with('}') {
+                #[cfg(feature = "kramdown")]
+                if crate::kramdown::is_attribute_list(&text) {
                     return;
                 }
                 self.text(text.into_string());
@@ -431,7 +422,8 @@ impl<'t> Renderer<'t> {
             Tag::Image { dest_url, .. } => {
                 self.image = Some((dest_url.into_string(), String::new()))
             }
-            Tag::MetadataBlock(_) => self.metadata = true,
+            // Never parsed, as front matter is split off beforehand.
+            Tag::MetadataBlock(_) => {}
         }
     }
 

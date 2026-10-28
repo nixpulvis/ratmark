@@ -14,6 +14,10 @@ default = ["highlight"]
 # Syntax highlighting for fenced code blocks, using syntect's pure Rust regex
 # engine so it also builds for wasm32.
 highlight = ["dep:syntect"]
+# Split YAML or TOML front matter off the top of documents.
+front-matter = []
+# Understand Markdown written for kramdown, like Jekyll sites.
+kramdown = []
 
 [dependencies]
 pulldown-cmark = { version = "0.13", default-features = false }

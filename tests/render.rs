@@ -96,13 +96,16 @@ fn tables_line_up() {
     assert_eq!(lines(md, 40), ["a   │ bb", "────┼───", "ccc │  d"]);
 }
 
+#[cfg(feature = "front-matter")]
 #[test]
 fn front_matter_is_kept_aside() {
     let rendered = render("---\ntitle: Hi\n---\n\nBody", 40, &Theme::default());
-    assert_eq!(rendered.front_matter.as_deref(), Some("title: Hi\n"));
+    let front = rendered.front_matter.unwrap();
+    assert_eq!(front.get("title").as_deref(), Some("Hi"));
     assert_eq!(rendered.lines.len(), 1);
 }
 
+#[cfg(feature = "kramdown")]
 #[test]
 fn kramdown_attribute_lists_are_dropped() {
     assert_eq!(
