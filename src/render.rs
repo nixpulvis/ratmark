@@ -2,11 +2,12 @@
 
 use pulldown_cmark::{CodeBlockKind, Event, HeadingLevel, Options, Parser, Tag, TagEnd};
 use ratatui_core::style::Style;
+use ratatui_core::text::{Line, Span};
 
 use crate::table::Table;
 use crate::wrap::{Inline, Piece};
 use crate::writer::{Prefix, Writer};
-use crate::{Heading, Rendered, Theme};
+use crate::{Heading, Overflow, Rendered, Theme};
 
 #[cfg(feature = "html")]
 mod html;
@@ -27,6 +28,9 @@ pub(crate) struct Renderer<'t> {
     theme: &'t Theme,
     writer: Writer,
     headings: Vec<Heading>,
+    overflows: Vec<Overflow>,
+    /// Code blocks written so far.
+    code_blocks: usize,
     open: Vec<Open>,
     capture: Option<Capture>,
     table: Option<Table>,
@@ -38,6 +42,8 @@ impl<'t> Renderer<'t> {
             theme,
             writer: Writer::new(width),
             headings: Vec::new(),
+            overflows: Vec::new(),
+            code_blocks: 0,
             open: Vec::new(),
             capture: None,
             table: None,
@@ -60,6 +66,7 @@ impl<'t> Renderer<'t> {
             lines,
             links,
             headings: self.headings,
+            overflows: self.overflows,
             // Filled in by `Rendered::render`, which splits it off first.
             #[cfg(feature = "front-matter")]
             front_matter: None,
@@ -335,34 +342,32 @@ impl<'t> Renderer<'t> {
         let lines = crate::syntax::highlight(&code, lang, self.theme).unwrap_or_else(plain);
         #[cfg(not(feature = "syntax"))]
         let lines: Vec<Vec<Piece>> = plain();
-        let width = self.writer.available();
-        // One column of padding on each side.
-        let inner = width.saturating_sub(2).max(1);
-        for line in lines {
-            let mut rows = vec![Vec::new()];
-            let mut used = 0;
-            for piece in line {
-                for c in piece.text.chars() {
-                    let w = unicode_width::UnicodeWidthChar::width(c).unwrap_or(0);
-                    if used + w > inner {
-                        rows.push(Vec::new());
-                        used = 0;
-                    }
-                    let row = rows.last_mut().expect("rows starts non-empty");
-                    match row.last_mut() {
-                        Some(Piece { text, style, .. }) if *style == piece.style => text.push(c),
-                        _ => row.push(Piece::new(c.to_string(), piece.style)),
-                    }
-                    used += w;
-                }
-            }
-            for row in rows {
-                let used: usize = row.iter().map(Piece::width).sum();
-                let mut pieces = vec![Piece::new(" ", base)];
-                pieces.extend(row);
-                pieces.push(Piece::new(" ".repeat(width.saturating_sub(used + 1)), base));
-                self.writer.emit(pieces);
-            }
+        let code: Vec<Line<'static>> = lines
+            .into_iter()
+            .map(|line| Line::from_iter(line.into_iter().map(|p| Span::styled(p.text, p.style))))
+            .collect();
+        self.writer.pay_gap();
+        let first = self.writer.next_block_line();
+        let block = Overflow {
+            block: self.code_blocks,
+            lines: first..first + code.len(),
+            x: self.writer.indent() as u16,
+            // One column of padding on each side.
+            width: self.writer.available().saturating_sub(2).max(1) as u16,
+            code,
+            style: base,
+        };
+        for i in 0..block.code.len() {
+            let row = block.row(i, 0);
+            let pieces = row
+                .spans
+                .into_iter()
+                .map(|s| Piece::new(s.content, s.style));
+            self.writer.emit(pieces.collect());
+        }
+        self.code_blocks += 1;
+        if block.max_shift() > 0 {
+            self.overflows.push(block);
         }
         self.writer.set_gap(true);
     }

@@ -98,9 +98,21 @@ fn code_blocks_fill_the_width() {
 }
 
 #[test]
-fn long_code_lines_wrap_inside_the_block() {
-    let out = lines("```\nabcdefgh\n```", 6);
-    assert_eq!(out, [" abcd", " efgh"]);
+fn long_code_lines_are_cut_off() {
+    let out = lines("```\nabcdefgh\nab\n```", 6);
+    assert_eq!(out, [" abcd›", " ab"]);
+}
+
+#[test]
+fn wide_code_blocks_shift_sideways() {
+    let rendered = Rendered::render("> ```\n> abcdefgh\n> ab\n> ```", 8, &Theme::default());
+    let block = &rendered.overflows[0];
+    assert_eq!((block.lines.clone(), block.x, block.width), (0..2, 2, 4));
+    assert_eq!(block.max_shift(), 4);
+    let row = |i, shift| block.row(i, shift).to_string();
+    assert_eq!(row(0, 2), "‹cdef›");
+    assert_eq!(row(0, 9), "‹efgh ");
+    assert_eq!(row(1, 2), "‹     ");
 }
 
 #[test]

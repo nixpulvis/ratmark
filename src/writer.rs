@@ -184,6 +184,11 @@ impl Writer {
         self.prefixes.pop();
     }
 
+    /// How far in content starts, past the prefixes.
+    pub fn indent(&self) -> usize {
+        self.width - self.available().min(self.width)
+    }
+
     /// Room left for content once the prefixes are drawn.
     pub fn available(&self) -> usize {
         let prefixes: usize = self

@@ -18,7 +18,9 @@
 //! supported. With the `html` feature, HTML embedded in the Markdown is read
 //! for its text, links and simple formatting, and without it HTML is left
 //! out. Code blocks are syntax highlighted with the `syntax`
-//! feature, which is off by default.
+//! feature, which is off by default. Code too wide for the page is cut off
+//! rather than wrapped, and [`MarkdownState::shift_by`] and
+//! [`MarkdownState::shift_at`] shift a block sideways.
 //!
 //! The `front-matter` feature, off by default, splits YAML or TOML front
 //! matter off the top of a document instead of rendering it. See
@@ -35,7 +37,11 @@
 //!
 //! [Ratatui]: https://ratatui.rs
 
-use ratatui_core::text::{Line, Text};
+use std::ops::Range;
+
+use ratatui_core::style::Style;
+use ratatui_core::text::{Line, Span, Text};
+use unicode_width::UnicodeWidthChar;
 
 #[cfg(feature = "front-matter")]
 pub mod front_matter;
@@ -65,6 +71,9 @@ pub struct Rendered {
     pub front_matter: Option<front_matter::FrontMatter>,
     /// Every heading, in order, for jumping to a section or listing them.
     pub headings: Vec<Heading>,
+    /// Code blocks too wide for the page, which [`Rendered::lines`] shows
+    /// cut off.
+    pub overflows: Vec<Overflow>,
 }
 
 impl Rendered {
@@ -116,6 +125,71 @@ pub struct Link {
     /// Where the link's text landed. A link that wraps has one region per
     /// line.
     pub regions: Vec<Region>,
+}
+
+/// A code block too wide for the page. Its lines are cut off at the page's
+/// edge, with a `›` in the padding where there's more, and can be drawn
+/// shifted sideways to show the rest.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Overflow {
+    /// Which of the document's code blocks this is, counting from 0, the
+    /// same at any width.
+    pub block: usize,
+    /// The lines the block is drawn on.
+    pub lines: Range<usize>,
+    /// The column the block starts at, including its padding.
+    pub x: u16,
+    /// How many columns of code show, between a column of padding on
+    /// either side.
+    pub width: u16,
+    /// The code, line by line, uncut.
+    code: Vec<Line<'static>>,
+    style: Style,
+}
+
+impl Overflow {
+    /// How far the block can be shifted before its widest line runs out.
+    pub fn max_shift(&self) -> usize {
+        let widest = self.code.iter().map(Line::width).max().unwrap_or(0);
+        widest.saturating_sub(usize::from(self.width))
+    }
+
+    /// The block's `i`th line with its padding, shifted `shift` columns to
+    /// the left, `‹` and `›` showing where code is out of sight.
+    pub fn row(&self, i: usize, shift: usize) -> Line<'static> {
+        let shift = shift.min(self.max_shift());
+        let width = usize::from(self.width);
+        let code = &self.code[i];
+        let marker =
+            |more: bool, c: &'static str| Span::styled(if more { c } else { " " }, self.style);
+        let mut spans = vec![marker(shift > 0 && code.width() > 0, "‹")];
+        let mut x = 0;
+        for span in &code.spans {
+            let mut text = String::new();
+            for c in span.content.chars() {
+                let w = c.width().unwrap_or(0);
+                let (from, to) = (x, x + w);
+                x = to;
+                if to <= shift || from >= shift + width {
+                    continue;
+                }
+                // A wide character cut by either edge shows as spaces.
+                if from < shift || to > shift + width {
+                    let shown = to.min(shift + width) - from.max(shift);
+                    text.push_str(&" ".repeat(shown));
+                } else {
+                    text.push(c);
+                }
+            }
+            if !text.is_empty() {
+                spans.push(Span::styled(text, self.style.patch(span.style)));
+            }
+        }
+        let used = x.saturating_sub(shift).min(width);
+        spans.push(Span::styled(" ".repeat(width - used), self.style));
+        spans.push(marker(x > shift + width, "›"));
+        Line::from(spans)
+    }
 }
 
 /// A stretch of one line, in columns from the start of the line.

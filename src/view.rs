@@ -5,7 +5,7 @@ use ratatui_core::layout::Rect;
 use ratatui_core::style::{Modifier, Style};
 use ratatui_core::widgets::StatefulWidget;
 
-use crate::{Link, Region, Rendered, Theme};
+use crate::{Link, Overflow, Region, Rendered, Theme};
 
 /// Draws a [`MarkdownState`]'s document, laid out to fit the area it's
 /// given, scrolled and with its focused link highlighted.
@@ -53,6 +53,9 @@ pub struct MarkdownState {
     /// The layout, and the width it was made for.
     rendered: Option<(u16, Rendered)>,
     scroll: usize,
+    /// How far each code block too wide for the page is shifted sideways,
+    /// by [`Overflow::block`].
+    shifts: Vec<usize>,
     focus: Option<usize>,
     /// Where the view was last drawn.
     area: Rect,
@@ -104,6 +107,60 @@ impl MarkdownState {
     /// Scrolls by `lines`, down when positive.
     pub fn scroll_by(&mut self, lines: isize) {
         self.scroll_to(self.scroll.saturating_add_signed(lines));
+    }
+
+    /// How far the `block`th code block is shifted to the left, in columns.
+    pub fn shift(&self, block: usize) -> usize {
+        self.shifts.get(block).copied().unwrap_or(0)
+    }
+
+    /// Shifts the topmost wide code block on screen by `columns`, to the
+    /// left when positive, as far as its widest line allows.
+    // TODO: Let tab focus wide code blocks along with links, and shift the
+    // focused one.
+    pub fn shift_by(&mut self, columns: isize) {
+        let block = self
+            .visible_overflows()
+            .next()
+            .map(|o| (o.block, o.max_shift()));
+        if let Some((block, max)) = block {
+            self.shift_block(block, max, columns);
+        }
+    }
+
+    /// Shifts the wide code block drawn at screen position `x`, `y` by
+    /// `columns`, if there is one there. Returns whether there was.
+    pub fn shift_at(&mut self, x: u16, y: u16, columns: isize) -> bool {
+        let area = self.area;
+        if x < area.x || y < area.y || x >= area.right() || y >= area.bottom() {
+            return false;
+        }
+        let (x, line) = (x - area.x, self.scroll + usize::from(y - area.y));
+        let block = self
+            .visible_overflows()
+            .find(|o| o.lines.contains(&line) && (o.x..o.x + o.width + 2).contains(&x))
+            .map(|o| (o.block, o.max_shift()));
+        if let Some((block, max)) = block {
+            self.shift_block(block, max, columns);
+        }
+        block.is_some()
+    }
+
+    fn shift_block(&mut self, block: usize, max: usize, columns: isize) {
+        if self.shifts.len() <= block {
+            self.shifts.resize(block + 1, 0);
+        }
+        let shift = &mut self.shifts[block];
+        *shift = shift.saturating_add_signed(columns).min(max);
+    }
+
+    /// The code blocks too wide for the page that are on screen.
+    fn visible_overflows(&self) -> impl Iterator<Item = &Overflow> {
+        let screen = self.scroll..self.scroll + usize::from(self.area.height);
+        self.rendered()
+            .into_iter()
+            .flat_map(|r| &r.overflows)
+            .filter(move |o| o.lines.start < screen.end && screen.start < o.lines.end)
     }
 
     /// Scrolls by a screenful, less a couple of lines for context.
@@ -262,6 +319,20 @@ impl StatefulWidget for MarkdownView<'_> {
             .enumerate()
         {
             buf.set_line(area.x, area.y + i as u16, line, area.width);
+        }
+        for overflow in state.visible_overflows() {
+            let shift = state.shift(overflow.block);
+            if shift > 0 {
+                let x = area.x + overflow.x;
+                let width = area.right().saturating_sub(x);
+                for line in overflow.lines.clone() {
+                    let Some(row) = line.checked_sub(state.scroll).filter(|r| *r < height) else {
+                        continue;
+                    };
+                    let shifted = overflow.row(line - overflow.lines.start, shift);
+                    buf.set_line(x, area.y + row as u16, &shifted, width);
+                }
+            }
         }
         #[cfg(feature = "native-links")]
         for (i, link) in rendered.links.iter().enumerate() {
@@ -424,6 +495,27 @@ mod tests {
         assert_eq!(state.link_at(8, 2).map(|l| l.url.as_str()), Some("/x"));
         assert!(state.link_at(5, 2).is_none());
         assert!(state.link_at(8, 3).is_none());
+    }
+
+    #[test]
+    fn wide_code_shifts_one_block_at_a_time() {
+        let mut state = MarkdownState::new("```\nabcdefgh\n```\n\n```\nijklmnop\n```\n\na");
+        draw(&mut state, 6, 3);
+        state.shift_by(2);
+        let buf = draw(&mut state, 6, 3);
+        assert_eq!(
+            (row(&buf, 0), row(&buf, 2)),
+            ("‹cdef›".into(), " ijkl›".into())
+        );
+        state.shift_by(100);
+        assert_eq!((state.shift(0), state.shift(1)), (4, 0));
+        assert!(state.shift_at(3, 2, 1));
+        assert!(!state.shift_at(3, 1, 1));
+        assert_eq!((state.shift(0), state.shift(1)), (4, 1));
+        // Past the first block, the keys shift the second.
+        state.scroll_to(2);
+        state.shift_by(1);
+        assert_eq!((state.shift(0), state.shift(1)), (4, 2));
     }
 
     #[test]
