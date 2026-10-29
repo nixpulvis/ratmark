@@ -104,9 +104,12 @@ impl MarkdownState {
         self.clamp();
     }
 
-    /// Scrolls by `lines`, down when positive.
-    pub fn scroll_by(&mut self, lines: isize) {
+    /// Scrolls by `lines`, down when positive. Returns whether it moved,
+    /// which it doesn't at either end.
+    pub fn scroll_by(&mut self, lines: isize) -> bool {
+        let was = self.scroll;
         self.scroll_to(self.scroll.saturating_add_signed(lines));
+        self.scroll != was
     }
 
     /// How far the `block`th code block is shifted to the left, in columns.
@@ -114,22 +117,22 @@ impl MarkdownState {
         self.shifts.get(block).copied().unwrap_or(0)
     }
 
-    /// Shifts the topmost wide code block on screen by `columns`, to the
-    /// left when positive, as far as its widest line allows.
     // TODO: Let tab focus wide code blocks along with links, and shift the
     // focused one.
-    pub fn shift_by(&mut self, columns: isize) {
+    /// Shifts the topmost wide code block on screen by `columns`, to the
+    /// left when positive, as far as its widest line allows.
+    /// Returns whether it moved, which it doesn't at its end.
+    pub fn shift_by(&mut self, columns: isize) -> bool {
         let block = self
             .visible_overflows()
             .next()
             .map(|o| (o.block, o.max_shift()));
-        if let Some((block, max)) = block {
-            self.shift_block(block, max, columns);
-        }
+        block.is_some_and(|(block, max)| self.shift_block(block, max, columns))
     }
 
     /// Shifts the wide code block drawn at screen position `x`, `y` by
-    /// `columns`, if there is one there. Returns whether there was.
+    /// `columns`, if there is one there. Returns whether it moved, which it
+    /// doesn't when there's none or it's at its end.
     pub fn shift_at(&mut self, x: u16, y: u16, columns: isize) -> bool {
         let area = self.area;
         if x < area.x || y < area.y || x >= area.right() || y >= area.bottom() {
@@ -140,18 +143,17 @@ impl MarkdownState {
             .visible_overflows()
             .find(|o| o.lines.contains(&line) && (o.x..o.x + o.width + 2).contains(&x))
             .map(|o| (o.block, o.max_shift()));
-        if let Some((block, max)) = block {
-            self.shift_block(block, max, columns);
-        }
-        block.is_some()
+        block.is_some_and(|(block, max)| self.shift_block(block, max, columns))
     }
 
-    fn shift_block(&mut self, block: usize, max: usize, columns: isize) {
+    fn shift_block(&mut self, block: usize, max: usize, columns: isize) -> bool {
         if self.shifts.len() <= block {
             self.shifts.resize(block + 1, 0);
         }
         let shift = &mut self.shifts[block];
+        let was = *shift;
         *shift = shift.saturating_add_signed(columns).min(max);
+        *shift != was
     }
 
     /// The code blocks too wide for the page that are on screen.
@@ -419,7 +421,8 @@ mod tests {
     fn scrolls_within_the_document() {
         let mut state = MarkdownState::new("a\n\nb\n\nc");
         draw(&mut state, 10, 2);
-        state.scroll_by(100);
+        assert!(state.scroll_by(100));
+        assert!(!state.scroll_by(1));
         assert_eq!(state.scroll(), 3);
         let buf = draw(&mut state, 10, 2);
         assert_eq!((row(&buf, 0), row(&buf, 1)), ("".into(), "c".into()));
@@ -501,13 +504,14 @@ mod tests {
     fn wide_code_shifts_one_block_at_a_time() {
         let mut state = MarkdownState::new("```\nabcdefgh\n```\n\n```\nijklmnop\n```\n\na");
         draw(&mut state, 6, 3);
-        state.shift_by(2);
+        assert!(state.shift_by(2));
         let buf = draw(&mut state, 6, 3);
         assert_eq!(
             (row(&buf, 0), row(&buf, 2)),
             ("‹cdef›".into(), " ijkl›".into())
         );
-        state.shift_by(100);
+        assert!(state.shift_by(100));
+        assert!(!state.shift_by(1));
         assert_eq!((state.shift(0), state.shift(1)), (4, 0));
         assert!(state.shift_at(3, 2, 1));
         assert!(!state.shift_at(3, 1, 1));
