@@ -7,36 +7,6 @@ use ratatui_core::text::{Line, Span};
 use crate::wrap::{Inline, Piece, wrap};
 use crate::{Link, Region};
 
-/// Something drawn at the start of every line of a block, like a block
-/// quote's bar or a list item's bullet. `first` is used on the block's first
-/// line and `rest` after.
-pub(crate) struct Prefix {
-    pub first: Vec<Piece>,
-    pub rest: Vec<Piece>,
-    pub used: bool,
-}
-
-impl Prefix {
-    /// A prefix that's the same on every line.
-    pub fn same(piece: Piece) -> Self {
-        Self {
-            first: vec![piece.clone()],
-            rest: vec![piece],
-            used: false,
-        }
-    }
-
-    /// A marker on the first line, like a bullet, and spaces as wide under it.
-    pub fn hanging(marker: Piece, text: Style) -> Self {
-        let indent = " ".repeat(marker.width());
-        Self {
-            first: vec![marker],
-            rest: vec![Piece::new(indent, text)],
-            used: false,
-        }
-    }
-}
-
 pub(crate) struct Writer {
     width: usize,
     lines: Vec<Line<'static>>,
@@ -66,6 +36,14 @@ impl Writer {
         (self.lines, self.links)
     }
 
+    pub fn piece(&mut self, text: impl Into<String>, style: Style, link: Option<usize>) {
+        self.inline.push(Inline::Piece(Piece {
+            text: text.into(),
+            style,
+            link,
+        }));
+    }
+
     /// Starts a link to `url`, for pieces to point at.
     pub fn link(&mut self, url: &str) -> usize {
         self.links.push(Link {
@@ -73,14 +51,6 @@ impl Writer {
             regions: Vec::new(),
         });
         self.links.len() - 1
-    }
-
-    pub fn piece(&mut self, text: impl Into<String>, style: Style, link: Option<usize>) {
-        self.inline.push(Inline::Piece(Piece {
-            text: text.into(),
-            style,
-            link,
-        }));
     }
 
     pub fn line_break(&mut self) {
@@ -99,68 +69,6 @@ impl Writer {
         if !blank {
             self.line_break();
         }
-    }
-
-    pub fn inline(&self) -> &[Inline] {
-        &self.inline
-    }
-
-    /// The inline content so far, taken out to lay out some other way, like
-    /// in a table cell.
-    pub fn take_inline(&mut self) -> Vec<Inline> {
-        std::mem::take(&mut self.inline)
-    }
-
-    /// Whether the inline content so far shows nothing.
-    pub fn inline_is_blank(&self) -> bool {
-        self.inline.iter().all(|i| match i {
-            Inline::Piece(p) => p.text.trim().is_empty(),
-            Inline::Break => true,
-        })
-    }
-
-    pub fn lines_written(&self) -> usize {
-        self.lines.len()
-    }
-
-    /// The line the next block starts on, counting a blank line owed before
-    /// it.
-    pub fn next_block_line(&self) -> usize {
-        self.lines.len() + usize::from(self.gap && !self.lines.is_empty())
-    }
-
-    /// Whether a blank line is owed before the next block.
-    pub fn set_gap(&mut self, owed: bool) {
-        self.gap = owed;
-    }
-
-    /// Writes the blank line owed, if there is one, now rather than with the
-    /// next block, so it goes outside a prefix about to be pushed.
-    pub fn pay_gap(&mut self) {
-        if std::mem::take(&mut self.gap) && !self.lines.is_empty() {
-            self.blank();
-        }
-    }
-
-    pub fn push_prefix(&mut self, prefix: Prefix) {
-        self.prefixes.push(prefix);
-    }
-
-    pub fn pop_prefix(&mut self) {
-        self.prefixes.pop();
-    }
-
-    /// Room left for content once the prefixes are drawn.
-    pub fn available(&self) -> usize {
-        let prefixes: usize = self
-            .prefixes
-            .iter()
-            .map(|p| {
-                let pieces = if p.used { &p.rest } else { &p.first };
-                pieces.iter().map(Piece::width).sum::<usize>()
-            })
-            .sum();
-        self.width.saturating_sub(prefixes).max(1)
     }
 
     /// Lays out any pending inline content.
@@ -247,6 +155,98 @@ impl Writer {
             .map(|p| Span::styled(p.text, p.style))
             .collect();
         self.lines.push(Line::from(spans));
+    }
+
+    /// Whether a blank line is owed before the next block.
+    pub fn set_gap(&mut self, owed: bool) {
+        self.gap = owed;
+    }
+
+    /// Writes the blank line owed, if there is one, now rather than with the
+    /// next block, so it goes outside a prefix about to be pushed.
+    pub fn pay_gap(&mut self) {
+        if std::mem::take(&mut self.gap) && !self.lines.is_empty() {
+            self.blank();
+        }
+    }
+
+    /// The line the next block starts on, counting a blank line owed before
+    /// it.
+    pub fn next_block_line(&self) -> usize {
+        self.lines.len() + usize::from(self.gap && !self.lines.is_empty())
+    }
+
+    pub fn push_prefix(&mut self, prefix: Prefix) {
+        self.prefixes.push(prefix);
+    }
+
+    pub fn pop_prefix(&mut self) {
+        self.prefixes.pop();
+    }
+
+    /// Room left for content once the prefixes are drawn.
+    pub fn available(&self) -> usize {
+        let prefixes: usize = self
+            .prefixes
+            .iter()
+            .map(|p| {
+                let pieces = if p.used { &p.rest } else { &p.first };
+                pieces.iter().map(Piece::width).sum::<usize>()
+            })
+            .sum();
+        self.width.saturating_sub(prefixes).max(1)
+    }
+
+    pub fn inline(&self) -> &[Inline] {
+        &self.inline
+    }
+
+    /// The inline content so far, taken out to lay out some other way, like
+    /// in a table cell.
+    pub fn take_inline(&mut self) -> Vec<Inline> {
+        std::mem::take(&mut self.inline)
+    }
+
+    /// Whether the inline content so far shows nothing.
+    pub fn inline_is_blank(&self) -> bool {
+        self.inline.iter().all(|i| match i {
+            Inline::Piece(p) => p.text.trim().is_empty(),
+            Inline::Break => true,
+        })
+    }
+
+    pub fn lines_written(&self) -> usize {
+        self.lines.len()
+    }
+}
+
+/// Something drawn at the start of every line of a block, like a block
+/// quote's bar or a list item's bullet. `first` is used on the block's first
+/// line and `rest` after.
+pub(crate) struct Prefix {
+    pub first: Vec<Piece>,
+    pub rest: Vec<Piece>,
+    pub used: bool,
+}
+
+impl Prefix {
+    /// A prefix that's the same on every line.
+    pub fn same(piece: Piece) -> Self {
+        Self {
+            first: vec![piece.clone()],
+            rest: vec![piece],
+            used: false,
+        }
+    }
+
+    /// A marker on the first line, like a bullet, and spaces as wide under it.
+    pub fn hanging(marker: Piece, text: Style) -> Self {
+        let indent = " ".repeat(marker.width());
+        Self {
+            first: vec![marker],
+            rest: vec![Piece::new(indent, text)],
+            used: false,
+        }
     }
 }
 

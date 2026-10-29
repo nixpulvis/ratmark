@@ -9,72 +9,6 @@ use crate::wrap::{Inline, Piece, wrap};
 use crate::writer::{Prefix, Writer};
 use crate::{Heading, Rendered, Theme};
 
-pub(crate) fn options() -> Options {
-    Options::ENABLE_TABLES
-        | Options::ENABLE_FOOTNOTES
-        | Options::ENABLE_STRIKETHROUGH
-        | Options::ENABLE_TASKLISTS
-        | Options::ENABLE_MATH
-        | Options::ENABLE_SMART_PUNCTUATION
-        | Options::ENABLE_HEADING_ATTRIBUTES
-}
-
-const BULLETS: [&str; 3] = ["• ", "◦ ", "▪ "];
-
-/// An element that's open, and what it changed until it closes.
-struct Open {
-    kind: Kind,
-    /// The style of text inside it.
-    style: Style,
-    /// The link text inside it points at.
-    link: Option<usize>,
-    /// Whether it pushed a prefix, to pop when it closes.
-    prefixed: bool,
-}
-
-/// What an open element is, so its end closes the right one.
-#[derive(PartialEq)]
-enum Kind {
-    /// Inline formatting, like emphasis.
-    Style,
-    Link,
-    Heading,
-    Quote,
-    /// A list, counting its items when it's numbered.
-    List(Option<u64>),
-    Item,
-    Footnote,
-    Definition,
-    TableHead,
-    /// An HTML element that styles its text, or a link, by its tag name.
-    #[cfg(feature = "html")]
-    Html(String),
-    #[cfg(feature = "html")]
-    HtmlItem,
-}
-
-/// Content read whole before it's drawn, swallowing the events inside it.
-enum Capture {
-    Code {
-        lang: String,
-        text: String,
-    },
-    Image {
-        url: String,
-        alt: String,
-    },
-    HtmlBlock(String),
-    /// The text of an HTML `<pre>`, kept as is until it closes.
-    #[cfg(feature = "html")]
-    Pre(String),
-}
-
-struct Table {
-    alignments: Vec<Alignment>,
-    rows: Vec<Vec<Vec<Inline>>>,
-    row: Vec<Vec<Inline>>,
-}
-
 pub(crate) struct Renderer<'t> {
     theme: &'t Theme,
     writer: Writer,
@@ -116,73 +50,6 @@ impl<'t> Renderer<'t> {
             #[cfg(feature = "front-matter")]
             front_matter: None,
         }
-    }
-
-    fn style(&self) -> Style {
-        self.open.last().map_or(self.theme.text, |o| o.style)
-    }
-
-    fn link(&self) -> Option<usize> {
-        self.open.iter().rev().find_map(|o| o.link)
-    }
-
-    fn piece(&mut self, text: impl Into<String>, style: Style) {
-        let link = self.link();
-        self.writer.piece(text, style, link);
-    }
-
-    fn text(&mut self, text: impl Into<String>) {
-        let style = self.style();
-        self.piece(text, style);
-    }
-
-    /// Opens an element whose text is styled with `patch`.
-    fn open(&mut self, kind: Kind, patch: Style) {
-        let style = self.style().patch(patch);
-        self.open.push(Open {
-            kind,
-            style,
-            link: None,
-            prefixed: false,
-        });
-    }
-
-    /// Opens an element that draws `prefix` before each of its lines.
-    fn open_prefixed(&mut self, kind: Kind, prefix: Prefix, patch: Style) {
-        self.writer.push_prefix(prefix);
-        self.open(kind, patch);
-        if let Some(open) = self.open.last_mut() {
-            open.prefixed = true;
-        }
-    }
-
-    fn open_link(&mut self, kind: Kind, url: &str) {
-        let link = self.writer.link(url);
-        self.open(kind, self.theme.link);
-        if let Some(open) = self.open.last_mut() {
-            open.link = Some(link);
-        }
-    }
-
-    fn is_open(&self, kind: impl Fn(&Kind) -> bool) -> bool {
-        self.open.iter().any(|o| kind(&o.kind))
-    }
-
-    /// Closes the innermost open element of `kind`, and anything left open
-    /// inside it, like unclosed HTML.
-    fn close(&mut self, kind: impl Fn(&Kind) -> bool) -> Option<Open> {
-        if !self.is_open(&kind) {
-            return None;
-        }
-        while let Some(open) = self.open.pop() {
-            if open.prefixed {
-                self.writer.pop_prefix();
-            }
-            if kind(&open.kind) {
-                return Some(open);
-            }
-        }
-        None
     }
 
     /// Handles an event while `capture` is being read.
@@ -437,17 +304,6 @@ impl<'t> Renderer<'t> {
         }
     }
 
-    fn image(&mut self, url: &str, alt: &str) {
-        let label = if alt.trim().is_empty() {
-            "image".to_owned()
-        } else {
-            format!("image: {}", alt.trim())
-        };
-        let link = self.writer.link(url);
-        let style = self.style().patch(self.theme.link).patch(self.theme.image);
-        self.writer.piece(format!("[{label}]"), style, Some(link));
-    }
-
     fn code_block(&mut self, lang: &str, code: &str) {
         let code = code.replace('\t', "    ");
         let base = self.theme.code_block;
@@ -483,6 +339,17 @@ impl<'t> Renderer<'t> {
             }
         }
         self.writer.set_gap(true);
+    }
+
+    fn image(&mut self, url: &str, alt: &str) {
+        let label = if alt.trim().is_empty() {
+            "image".to_owned()
+        } else {
+            format!("image: {}", alt.trim())
+        };
+        let link = self.writer.link(url);
+        let style = self.style().patch(self.theme.link).patch(self.theme.image);
+        self.writer.piece(format!("[{label}]"), style, Some(link));
     }
 
     fn end_row(&mut self) {
@@ -727,6 +594,139 @@ impl<'t> Renderer<'t> {
             self.piece(format!("{} ", "#".repeat(level + 1)), style);
         }
     }
+
+    fn style(&self) -> Style {
+        self.open.last().map_or(self.theme.text, |o| o.style)
+    }
+
+    fn link(&self) -> Option<usize> {
+        self.open.iter().rev().find_map(|o| o.link)
+    }
+
+    fn piece(&mut self, text: impl Into<String>, style: Style) {
+        let link = self.link();
+        self.writer.piece(text, style, link);
+    }
+
+    fn text(&mut self, text: impl Into<String>) {
+        let style = self.style();
+        self.piece(text, style);
+    }
+
+    /// Opens an element whose text is styled with `patch`.
+    fn open(&mut self, kind: Kind, patch: Style) {
+        let style = self.style().patch(patch);
+        self.open.push(Open {
+            kind,
+            style,
+            link: None,
+            prefixed: false,
+        });
+    }
+
+    /// Opens an element that draws `prefix` before each of its lines.
+    fn open_prefixed(&mut self, kind: Kind, prefix: Prefix, patch: Style) {
+        self.writer.push_prefix(prefix);
+        self.open(kind, patch);
+        if let Some(open) = self.open.last_mut() {
+            open.prefixed = true;
+        }
+    }
+
+    fn open_link(&mut self, kind: Kind, url: &str) {
+        let link = self.writer.link(url);
+        self.open(kind, self.theme.link);
+        if let Some(open) = self.open.last_mut() {
+            open.link = Some(link);
+        }
+    }
+
+    fn is_open(&self, kind: impl Fn(&Kind) -> bool) -> bool {
+        self.open.iter().any(|o| kind(&o.kind))
+    }
+
+    /// Closes the innermost open element of `kind`, and anything left open
+    /// inside it, like unclosed HTML.
+    fn close(&mut self, kind: impl Fn(&Kind) -> bool) -> Option<Open> {
+        if !self.is_open(&kind) {
+            return None;
+        }
+        while let Some(open) = self.open.pop() {
+            if open.prefixed {
+                self.writer.pop_prefix();
+            }
+            if kind(&open.kind) {
+                return Some(open);
+            }
+        }
+        None
+    }
+}
+
+/// An element that's open, and what it changed until it closes.
+struct Open {
+    kind: Kind,
+    /// The style of text inside it.
+    style: Style,
+    /// The link text inside it points at.
+    link: Option<usize>,
+    /// Whether it pushed a prefix, to pop when it closes.
+    prefixed: bool,
+}
+
+/// What an open element is, so its end closes the right one.
+#[derive(PartialEq)]
+enum Kind {
+    /// Inline formatting, like emphasis.
+    Style,
+    Link,
+    Heading,
+    Quote,
+    /// A list, counting its items when it's numbered.
+    List(Option<u64>),
+    Item,
+    Footnote,
+    Definition,
+    TableHead,
+    /// An HTML element that styles its text, or a link, by its tag name.
+    #[cfg(feature = "html")]
+    Html(String),
+    #[cfg(feature = "html")]
+    HtmlItem,
+}
+
+/// Content read whole before it's drawn, swallowing the events inside it.
+enum Capture {
+    Code {
+        lang: String,
+        text: String,
+    },
+    Image {
+        url: String,
+        alt: String,
+    },
+    HtmlBlock(String),
+    /// The text of an HTML `<pre>`, kept as is until it closes.
+    #[cfg(feature = "html")]
+    Pre(String),
+}
+
+struct Table {
+    alignments: Vec<Alignment>,
+    rows: Vec<Vec<Vec<Inline>>>,
+    row: Vec<Vec<Inline>>,
+}
+
+const BULLETS: [&str; 3] = ["• ", "◦ ", "▪ "];
+
+fn options() -> Options {
+    Options::ENABLE_TABLES
+        | Options::ENABLE_FOOTNOTES
+        | Options::ENABLE_STRIKETHROUGH
+        | Options::ENABLE_TASKLISTS
+        | Options::ENABLE_MATH
+        | Options::ENABLE_SMART_PUNCTUATION
+        | Options::ENABLE_HEADING_ATTRIBUTES
 }
 
 fn heading_index(level: HeadingLevel) -> usize {
