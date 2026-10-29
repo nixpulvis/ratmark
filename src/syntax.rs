@@ -8,6 +8,9 @@ use syntect::highlighting::ThemeSet;
 use syntect::parsing::SyntaxSet;
 use syntect::util::LinesWithEndings;
 
+use crate::Theme;
+use crate::wrap::Piece;
+
 fn syntaxes() -> &'static SyntaxSet {
     static SET: OnceLock<SyntaxSet> = OnceLock::new();
     SET.get_or_init(SyntaxSet::load_defaults_newlines)
@@ -18,12 +21,13 @@ fn themes() -> &'static ThemeSet {
     SET.get_or_init(ThemeSet::load_defaults)
 }
 
-/// Colors `code` as the language named `lang`, one entry per line. Returns
-/// `None` when the language or theme is unknown.
-pub(crate) fn highlight(code: &str, lang: &str, theme: &str) -> Option<Vec<Vec<(String, Color)>>> {
+/// Colors `code` as the language named `lang`, one entry per line, with the
+/// theme's syntax theme. Returns `None` when there's no syntax theme or the
+/// language or syntax theme is unknown.
+pub(crate) fn highlight(code: &str, lang: &str, theme: &Theme) -> Option<Vec<Vec<Piece>>> {
     let syntax = syntaxes().find_syntax_by_token(lang)?;
-    let theme = themes().themes.get(theme)?;
-    let mut highlighter = HighlightLines::new(syntax, theme);
+    let colors = themes().themes.get(theme.syntax?)?;
+    let mut highlighter = HighlightLines::new(syntax, colors);
     let mut lines = Vec::new();
     for line in LinesWithEndings::from(code) {
         let ranges = highlighter.highlight_line(line, syntaxes()).ok()?;
@@ -32,12 +36,12 @@ pub(crate) fn highlight(code: &str, lang: &str, theme: &str) -> Option<Vec<Vec<(
                 .into_iter()
                 .map(|(style, text)| {
                     let c = style.foreground;
-                    (
-                        text.trim_end_matches('\n').to_owned(),
-                        Color::Rgb(c.r, c.g, c.b),
+                    Piece::new(
+                        text.trim_end_matches('\n'),
+                        theme.code_block.fg(Color::Rgb(c.r, c.g, c.b)),
                     )
                 })
-                .filter(|(text, _)| !text.is_empty())
+                .filter(|piece| !piece.text.is_empty())
                 .collect(),
         );
     }

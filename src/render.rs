@@ -325,7 +325,14 @@ impl<'t> Renderer<'t> {
     fn code_block(&mut self, lang: &str, code: &str) {
         let code = code.replace('\t', "    ");
         let base = self.theme.code_block;
-        let lines = highlighted(&code, lang, self.theme)
+        #[cfg(feature = "syntax")]
+        let highlighted = crate::syntax::highlight(&code, lang, self.theme);
+        #[cfg(not(feature = "syntax"))]
+        let highlighted = {
+            let _ = lang;
+            None
+        };
+        let lines: Vec<Vec<Piece>> = highlighted
             .unwrap_or_else(|| code.lines().map(|l| vec![Piece::new(l, base)]).collect());
         let width = self.writer.available();
         // One column of padding on each side.
@@ -519,25 +526,4 @@ fn heading_index(level: HeadingLevel) -> usize {
         HeadingLevel::H5 => 4,
         HeadingLevel::H6 => 5,
     }
-}
-
-#[cfg(feature = "syntax")]
-fn highlighted(code: &str, lang: &str, theme: &Theme) -> Option<Vec<Vec<Piece>>> {
-    let name = theme.syntax?;
-    let lines = crate::syntax::highlight(code, lang, name)?;
-    Some(
-        lines
-            .into_iter()
-            .map(|line| {
-                line.into_iter()
-                    .map(|(text, color)| Piece::new(text, theme.code_block.fg(color)))
-                    .collect()
-            })
-            .collect(),
-    )
-}
-
-#[cfg(not(feature = "syntax"))]
-fn highlighted(_: &str, _: &str, _: &Theme) -> Option<Vec<Vec<Piece>>> {
-    None
 }
