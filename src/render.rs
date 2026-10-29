@@ -55,23 +55,23 @@ impl<'t> Renderer<'t> {
     /// Handles an event while `capture` is being read.
     fn captured(&mut self, capture: Capture, event: Event<'_>) {
         match (capture, event) {
-            (Capture::Code { lang, text }, Event::End(TagEnd::CodeBlock)) => {
-                self.code_block(&lang, &text)
-            }
             (Capture::Code { lang, mut text }, Event::Text(more)) => {
                 text.push_str(&more);
                 self.capture = Some(Capture::Code { lang, text });
             }
-            (Capture::Image { url, alt }, Event::End(TagEnd::Image)) => self.image(&url, &alt),
+            (Capture::Code { lang, text }, Event::End(TagEnd::CodeBlock)) => {
+                self.code_block(&lang, &text)
+            }
             (Capture::Image { url, mut alt }, Event::Text(more) | Event::Code(more)) => {
                 alt.push_str(&more);
                 self.capture = Some(Capture::Image { url, alt });
             }
-            (Capture::HtmlBlock(html), Event::End(TagEnd::HtmlBlock)) => self.html_block(&html),
+            (Capture::Image { url, alt }, Event::End(TagEnd::Image)) => self.image(&url, &alt),
             (Capture::HtmlBlock(mut html), Event::Html(more)) => {
                 html.push_str(&more);
                 self.capture = Some(Capture::HtmlBlock(html));
             }
+            (Capture::HtmlBlock(html), Event::End(TagEnd::HtmlBlock)) => self.html_block(&html),
             #[cfg(feature = "html")]
             (pre @ Capture::Pre(_), Event::Html(html) | Event::InlineHtml(html)) => {
                 self.capture = Some(pre);
