@@ -11,6 +11,18 @@ use crate::{Heading, Rendered, Theme};
 #[cfg(feature = "html")]
 mod html;
 
+const BULLETS: [&str; 3] = ["• ", "◦ ", "▪ "];
+
+fn options() -> Options {
+    Options::ENABLE_TABLES
+        | Options::ENABLE_FOOTNOTES
+        | Options::ENABLE_STRIKETHROUGH
+        | Options::ENABLE_TASKLISTS
+        | Options::ENABLE_MATH
+        | Options::ENABLE_SMART_PUNCTUATION
+        | Options::ENABLE_HEADING_ATTRIBUTES
+}
+
 pub(crate) struct Renderer<'t> {
     theme: &'t Theme,
     writer: Writer,
@@ -496,18 +508,6 @@ enum Capture {
     /// The text of an HTML `<pre>`, kept as is until it closes.
     #[cfg(feature = "html")]
     Pre(String),
-}
-
-const BULLETS: [&str; 3] = ["• ", "◦ ", "▪ "];
-
-fn options() -> Options {
-    Options::ENABLE_TABLES
-        | Options::ENABLE_FOOTNOTES
-        | Options::ENABLE_STRIKETHROUGH
-        | Options::ENABLE_TASKLISTS
-        | Options::ENABLE_MATH
-        | Options::ENABLE_SMART_PUNCTUATION
-        | Options::ENABLE_HEADING_ATTRIBUTES
 }
 
 fn heading_index(level: HeadingLevel) -> usize {
