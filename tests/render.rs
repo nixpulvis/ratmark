@@ -2,7 +2,7 @@ use ratmark::{Region, Rendered, Theme};
 use unicode_width::UnicodeWidthStr;
 
 fn lines(markdown: &str, width: u16) -> Vec<String> {
-    Rendered::new(markdown, width, &Theme::default())
+    Rendered::render(markdown, width, &Theme::default())
         .lines
         .iter()
         .map(|l| {
@@ -35,7 +35,7 @@ fn headings_can_show_their_marks() {
         heading_marker: Some(Default::default()),
         ..Theme::default()
     };
-    let rendered = Rendered::new("## Hi there", 40, &theme);
+    let rendered = Rendered::render("## Hi there", 40, &theme);
     let text: String = rendered.lines[0]
         .spans
         .iter()
@@ -52,7 +52,7 @@ fn html_headings_show_marks_too() {
         heading_marker: Some(Default::default()),
         ..Theme::default()
     };
-    let text: Vec<String> = Rendered::new("<h3>And here</h3>", 40, &theme)
+    let text: Vec<String> = Rendered::render("<h3>And here</h3>", 40, &theme)
         .lines
         .iter()
         .map(|l| l.spans.iter().map(|s| s.content.as_ref()).collect())
@@ -90,7 +90,7 @@ fn quotes_start_after_a_plain_gap() {
 
 #[test]
 fn code_blocks_fill_the_width() {
-    let rendered = Rendered::new("```\nfn x\n```", 12, &Theme::default());
+    let rendered = Rendered::render("```\nfn x\n```", 12, &Theme::default());
     let line = &rendered.lines[0];
     assert_eq!(line.width(), 12);
     let text: String = line.spans.iter().map(|s| s.content.as_ref()).collect();
@@ -105,7 +105,7 @@ fn long_code_lines_wrap_inside_the_block() {
 
 #[test]
 fn links_record_where_they_land() {
-    let rendered = Rendered::new("go [over there](/x) now", 10, &Theme::default());
+    let rendered = Rendered::render("go [over there](/x) now", 10, &Theme::default());
     let link = &rendered.links[0];
     assert_eq!(link.url, "/x");
     assert_eq!(
@@ -131,7 +131,7 @@ fn links_record_where_they_land() {
 #[test]
 fn html_links_and_lists() {
     let md = "<ul>\n<li><a href=\"/a\">A</a> <small>1 word</small></li>\n<li>B</li>\n</ul>";
-    let rendered = Rendered::new(md, 40, &Theme::default());
+    let rendered = Rendered::render(md, 40, &Theme::default());
     assert_eq!(rendered.links[0].url, "/a");
     assert_eq!(lines(md, 40), ["• A 1 word", "• B"]);
 }
@@ -145,7 +145,7 @@ fn tables_line_up() {
 #[cfg(feature = "front-matter")]
 #[test]
 fn front_matter_is_kept_aside() {
-    let rendered = Rendered::new("---\ntitle: Hi\n---\n\nBody", 40, &Theme::default());
+    let rendered = Rendered::render("---\ntitle: Hi\n---\n\nBody", 40, &Theme::default());
     let front = rendered.front_matter.unwrap();
     assert_eq!(front.get("title").as_deref(), Some("Hi"));
     assert_eq!(rendered.lines.len(), 1);
@@ -162,7 +162,7 @@ fn kramdown_attribute_lists_are_dropped() {
 
 #[test]
 fn images_become_links() {
-    let rendered = Rendered::new("![a cat](/cat.png)", 40, &Theme::default());
+    let rendered = Rendered::render("![a cat](/cat.png)", 40, &Theme::default());
     assert_eq!(rendered.links[0].url, "/cat.png");
     assert_eq!(lines("![a cat](/cat.png)", 40), ["[image: a cat]"]);
 }
@@ -202,7 +202,7 @@ fn corpus() {
 
 #[test]
 fn headings_are_listed() {
-    let rendered = Rendered::new("intro\n\n## One *two*\n\ntext", 40, &Theme::default());
+    let rendered = Rendered::render("intro\n\n## One *two*\n\ntext", 40, &Theme::default());
     let heading = &rendered.headings[0];
     assert_eq!(
         (heading.level, heading.text.as_str(), heading.line),

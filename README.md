@@ -20,7 +20,7 @@ if let Some(link) = state.link_at(mouse.column, mouse.row) { open(&link.url) }
 changes, and draws it scrolled with the focused link highlighted. Ratatui
 cells can't carry a URL, so the state keeps track of where every link landed,
 which is what makes keyboard focus and clicks work on links in the middle of
-wrapped text. For drawing a document some other way, `Rendered::new` returns
+wrapped text. For drawing a document some other way, `Rendered::render` returns
 the wrapped lines and link positions directly.
 
 It handles CommonMark plus tables, footnotes, strikethrough, task lists and

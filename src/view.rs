@@ -232,7 +232,7 @@ impl StatefulWidget for MarkdownView<'_> {
             // stays put through a resize.
             state.rendered = Some((
                 area.width,
-                Rendered::new(&state.markdown, area.width, self.theme),
+                Rendered::render(&state.markdown, area.width, self.theme),
             ));
         }
         state.apply_anchor();

@@ -5,12 +5,12 @@
 //! [`MarkdownState`] holds the document and lays it out again whenever the
 //! width changes.
 //!
-//! Underneath, [`Rendered::new`] lays a document out for a given width and returns
+//! Underneath, [`Rendered::render`] lays a document out for a given width and returns
 //! its lines along with where each link landed, for drawing it some other
 //! way.
 //!
 //! ```
-//! let rendered = ratmark::Rendered::new("# Hi\n\nSee [the docs](https://docs.rs).", 40, &ratmark::Theme::default());
+//! let rendered = ratmark::Rendered::render("# Hi\n\nSee [the docs](https://docs.rs).", 40, &ratmark::Theme::default());
 //! assert_eq!(rendered.links[0].url, "https://docs.rs");
 //! ```
 //!
@@ -68,7 +68,7 @@ impl Rendered {
     ///
     /// With the `front-matter` feature, front matter at the top is split off
     /// first and returned in [`Rendered::front_matter`].
-    pub fn new(markdown: &str, width: u16, theme: &Theme) -> Self {
+    pub fn render(markdown: &str, width: u16, theme: &Theme) -> Self {
         #[cfg(feature = "front-matter")]
         {
             let (front_matter, body) = front_matter::FrontMatter::split(markdown);
