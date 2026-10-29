@@ -45,6 +45,7 @@ mod render;
 mod theme;
 mod view;
 mod wrap;
+mod writer;
 
 pub use theme::Theme;
 pub use view::{MarkdownState, MarkdownView};
