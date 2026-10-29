@@ -12,10 +12,13 @@ const MIN_WIDTH: usize = 3;
 /// Drawn between columns.
 const SEPARATOR: &str = " │ ";
 
+/// A cell's inline content, laid out once the column widths are known.
+type Cell = Vec<Inline>;
+
 pub(crate) struct Table {
     alignments: Vec<Alignment>,
-    rows: Vec<Vec<Vec<Inline>>>,
-    row: Vec<Vec<Inline>>,
+    /// Each row's cells, the header first. Cells go in the last row.
+    rows: Vec<Vec<Cell>>,
 }
 
 impl Table {
@@ -23,16 +26,17 @@ impl Table {
         Self {
             alignments,
             rows: Vec::new(),
-            row: Vec::new(),
         }
     }
 
-    pub fn push_cell(&mut self, cell: Vec<Inline>) {
-        self.row.push(cell);
+    pub fn start_row(&mut self) {
+        self.rows.push(Vec::new());
     }
 
-    pub fn end_row(&mut self) {
-        self.rows.push(std::mem::take(&mut self.row));
+    pub fn push_cell(&mut self, cell: Cell) {
+        if let Some(row) = self.rows.last_mut() {
+            row.push(cell);
+        }
     }
 
     /// The table's lines, in `available` columns, with a rule under the
@@ -82,7 +86,7 @@ impl Table {
     }
 
     /// One row's lines, each cell wrapped to its column and aligned in it.
-    fn row_lines(&self, row: &[Vec<Inline>], widths: &[usize], theme: &Theme) -> Vec<Vec<Piece>> {
+    fn row_lines(&self, row: &[Cell], widths: &[usize], theme: &Theme) -> Vec<Vec<Piece>> {
         let cells: Vec<Vec<Vec<Piece>>> = widths
             .iter()
             .enumerate()

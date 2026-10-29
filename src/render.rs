@@ -226,8 +226,12 @@ impl<'t> Renderer<'t> {
                 self.writer.flush();
                 self.table = Some(Table::new(alignments));
             }
-            Tag::TableHead => self.open(Kind::TableHead, self.theme.table_header),
-            Tag::TableRow | Tag::TableCell => {}
+            Tag::TableHead => {
+                self.open(Kind::TableHead, self.theme.table_header);
+                self.start_row();
+            }
+            Tag::TableRow => self.start_row(),
+            Tag::TableCell => {}
             Tag::Emphasis => self.open(Kind::Style, self.theme.emphasis),
             Tag::Strong => self.open(Kind::Style, self.theme.strong),
             Tag::Strikethrough => self.open(Kind::Style, self.theme.strikethrough),
@@ -303,9 +307,8 @@ impl<'t> Renderer<'t> {
             }
             TagEnd::TableHead => {
                 self.close(|k| *k == Kind::TableHead);
-                self.end_row();
             }
-            TagEnd::TableRow => self.end_row(),
+            TagEnd::TableRow => {}
             TagEnd::Table => self.table(),
             TagEnd::Emphasis
             | TagEnd::Strong
@@ -387,9 +390,9 @@ impl<'t> Renderer<'t> {
         self.writer.set_gap(true);
     }
 
-    fn end_row(&mut self) {
+    fn start_row(&mut self) {
         if let Some(table) = &mut self.table {
-            table.end_row();
+            table.start_row();
         }
     }
 
