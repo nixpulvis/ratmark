@@ -4,191 +4,10 @@ use std::borrow::Cow;
 
 /// Rewrites what CommonMark would read differently from kramdown.
 pub(crate) fn preprocess(markdown: &str) -> Cow<'_, str> {
-    let markdown = table_of_contents(markdown);
-    if let Cow::Owned(out) = markdown_elements(&markdown) {
-        return Cow::Owned(out);
-    }
-    markdown
-}
-
-/// kramdown parses Markdown inside an HTML element marked `markdown="1"`.
-/// CommonMark only does so when blank lines separate the tags from the
-/// Markdown, so add them.
-fn markdown_elements(markdown: &str) -> Cow<'_, str> {
-    if !markdown.contains("markdown=\"1\"") {
-        return Cow::Borrowed(markdown);
-    }
-    let mut out = String::with_capacity(markdown.len() + 64);
-    // Names of open `markdown="1"` elements, and how deep each is nested in
-    // others of the same name.
-    let mut open: Vec<(String, usize)> = Vec::new();
-    let mut fence: Option<String> = None;
-    for line in markdown.split_inclusive('\n') {
-        let trimmed = line.trim();
-        if let Some(marker) = &fence {
-            if trimmed.starts_with(marker.as_str()) {
-                fence = None;
-            }
-            out.push_str(line);
-            continue;
-        }
-        if trimmed.starts_with("```") || trimmed.starts_with("~~~") {
-            fence = Some(trimmed[..3].to_owned());
-            out.push_str(line);
-            continue;
-        }
-        if let Some((name, depth)) = open.last_mut() {
-            if trimmed.starts_with(&format!("</{name}")) {
-                if *depth == 0 {
-                    out.push('\n');
-                    out.push_str(line);
-                    open.pop();
-                    continue;
-                }
-                *depth -= 1;
-            } else if trimmed.starts_with(&format!("<{name}")) {
-                *depth += 1;
-            }
-        }
-        out.push_str(line);
-        if trimmed.starts_with('<') && trimmed.ends_with('>') && trimmed.contains("markdown=\"1\"")
-        {
-            let name: String = trimmed[1..]
-                .chars()
-                .take_while(|c| c.is_ascii_alphanumeric())
-                .collect();
-            if !name.is_empty() {
-                if !line.ends_with('\n') {
-                    out.push('\n');
-                }
-                out.push('\n');
-                open.push((name, 0));
-            }
-        }
-    }
-    Cow::Owned(out)
-}
-
-/// kramdown replaces a one item list followed by `{:toc}` with a list of
-/// links to the document's headings, leaving out any marked `{:.no_toc}`.
-/// Write that list out, so it renders as links.
-fn table_of_contents(markdown: &str) -> Cow<'_, str> {
-    if !markdown.lines().any(is_toc) {
-        return Cow::Borrowed(markdown);
-    }
-    let lines: Vec<&str> = markdown.lines().collect();
-    let mut headings = Vec::new();
-    let mut ids = Vec::new();
-    let mut fence: Option<&str> = None;
-    for (i, line) in lines.iter().enumerate() {
-        let trimmed = line.trim();
-        if let Some(marker) = fence {
-            if trimmed.starts_with(marker) {
-                fence = None;
-            }
-            continue;
-        }
-        if trimmed.starts_with("```") || trimmed.starts_with("~~~") {
-            fence = Some(&trimmed[..3]);
-            continue;
-        }
-        let Some((level, text)) = atx_heading(line) else {
-            continue;
-        };
-        let next = lines.get(i + 1).map_or("", |l| l.trim());
-        if next.starts_with("{:") && next.contains(".no_toc") {
-            continue;
-        }
-        let mut id = header_id(text);
-        let base = id.clone();
-        let mut n = 0;
-        while ids.contains(&id) {
-            n += 1;
-            id = format!("{base}-{n}");
-        }
-        ids.push(id.clone());
-        headings.push((level, text, id));
-    }
-
-    let mut out = String::with_capacity(markdown.len());
-    let mut skip = false;
-    for (i, line) in lines.iter().enumerate() {
-        if skip {
-            skip = false;
-            continue;
-        }
-        let marker = list_marker(line);
-        if let Some(marker) = marker
-            && lines.get(i + 1).is_some_and(|next| is_toc(next))
-        {
-            let top = headings.iter().map(|(l, ..)| *l).min().unwrap_or(1);
-            let indent = " ".repeat(marker.len() + 1);
-            for (level, text, id) in &headings {
-                let depth = indent.repeat(level - top);
-                out.push_str(&format!("{depth}{marker} [{text}](#{id})\n"));
-            }
-            skip = true;
-            continue;
-        }
-        out.push_str(line);
-        out.push('\n');
-    }
-    if !markdown.ends_with('\n') {
-        out.pop();
-    }
-    Cow::Owned(out)
-}
-
-/// Whether `line` is kramdown's `{:toc}` marker.
-fn is_toc(line: &str) -> bool {
-    line.trim()
-        .strip_prefix("{:")
-        .and_then(|l| l.strip_suffix('}'))
-        .is_some_and(|l| l.trim() == "toc")
-}
-
-/// The marker of a list item, like `*` or `1.`.
-fn list_marker(line: &str) -> Option<&str> {
-    let (marker, rest) = line.trim_start().split_once(' ')?;
-    let bullet = matches!(marker, "*" | "-" | "+");
-    let ordered = marker
-        .strip_suffix(['.', ')'])
-        .is_some_and(|n| !n.is_empty() && n.chars().all(|c| c.is_ascii_digit()));
-    ((bullet || ordered) && !rest.trim().is_empty()).then_some(marker)
-}
-
-/// The level and text of a `#` heading.
-fn atx_heading(line: &str) -> Option<(usize, &str)> {
-    let level = line.chars().take_while(|&c| c == '#').count();
-    let rest = &line[level..];
-    if !(1..=6).contains(&level) || !rest.starts_with([' ', '\t']) {
-        return None;
-    }
-    let mut text = rest.trim();
-    // A trailing `{#id}` or attribute list.
-    if text.ends_with('}')
-        && let Some(start) = text.rfind('{')
-    {
-        text = text[..start].trim_end();
-    }
-    let text = text.trim_end_matches('#').trim_end();
-    (!text.is_empty()).then_some((level, text))
-}
-
-/// The id kramdown gives a heading with GFM input, Jekyll's default: the
-/// text in lowercase, keeping only word characters, spaces and dashes, with
-/// spaces made dashes.
-fn header_id(text: &str) -> String {
-    let id: String = text
-        .chars()
-        .filter(|c| c.is_alphanumeric() || matches!(c, '_' | ' ' | '-'))
-        .flat_map(char::to_lowercase)
-        .map(|c| if c == ' ' { '-' } else { c })
-        .collect();
-    if id.is_empty() {
-        "section".to_owned()
-    } else {
-        id
+    let markdown = Toc::expand(markdown);
+    match MarkdownElements::separate(&markdown) {
+        Cow::Owned(out) => Cow::Owned(out),
+        Cow::Borrowed(_) => markdown,
     }
 }
 
@@ -204,6 +23,260 @@ pub(crate) fn strip_attribute_lists(text: &str) -> &str {
         }
     }
     text
+}
+
+/// kramdown replaces a one item list followed by `{:toc}` with a list of
+/// links to the document's headings, leaving out any marked `{:.no_toc}`.
+/// This writes that list out, so it renders as links.
+struct Toc<'a> {
+    entries: Vec<Entry<'a>>,
+}
+
+/// A heading listed in a table of contents.
+struct Entry<'a> {
+    level: usize,
+    text: &'a str,
+    id: String,
+}
+
+impl<'a> Toc<'a> {
+    fn expand(markdown: &'a str) -> Cow<'a, str> {
+        if !markdown.lines().any(Self::is_marker) {
+            return Cow::Borrowed(markdown);
+        }
+        let lines: Vec<&str> = markdown.lines().collect();
+        let toc = Self::collect(&lines);
+        let mut out = String::with_capacity(markdown.len());
+        let mut lines = lines.iter().peekable();
+        while let Some(line) = lines.next() {
+            let next = lines.peek().copied().copied();
+            if let Some(marker) = Self::placeholder(line, next) {
+                toc.write(marker, &mut out);
+                lines.next();
+                continue;
+            }
+            out.push_str(line);
+            out.push('\n');
+        }
+        if !markdown.ends_with('\n') {
+            out.pop();
+        }
+        Cow::Owned(out)
+    }
+
+    /// The document's headings, outside of code, with unique ids.
+    fn collect(lines: &[&'a str]) -> Self {
+        let mut entries: Vec<Entry> = Vec::new();
+        let mut fence = Fence::default();
+        for (i, line) in lines.iter().enumerate() {
+            if fence.contains(line) {
+                continue;
+            }
+            let Some((level, text)) = Entry::heading(line) else {
+                continue;
+            };
+            let next = lines.get(i + 1).map_or("", |l| l.trim());
+            if next.starts_with("{:") && next.contains(".no_toc") {
+                continue;
+            }
+            let base = Entry::header_id(text);
+            let mut id = base.clone();
+            let mut n = 0;
+            while entries.iter().any(|e| e.id == id) {
+                n += 1;
+                id = format!("{base}-{n}");
+            }
+            entries.push(Entry { level, text, id });
+        }
+        Self { entries }
+    }
+
+    /// Writes the entries as a nested list of links, with `marker` bullets.
+    fn write(&self, marker: &str, out: &mut String) {
+        let top = self.entries.iter().map(|e| e.level).min().unwrap_or(1);
+        let indent = " ".repeat(marker.len() + 1);
+        for Entry { level, text, id } in &self.entries {
+            let depth = indent.repeat(level - top);
+            out.push_str(&format!("{depth}{marker} [{text}](#{id})\n"));
+        }
+    }
+
+    /// Whether `line` is kramdown's `{:toc}` marker.
+    fn is_marker(line: &str) -> bool {
+        line.trim()
+            .strip_prefix("{:")
+            .and_then(|l| l.strip_suffix('}'))
+            .is_some_and(|l| l.trim() == "toc")
+    }
+
+    /// The list marker, like `*` or `1.`, of a list item standing in for the
+    /// table of contents, which is one followed by the `{:toc}` marker.
+    fn placeholder<'l>(line: &'l str, next: Option<&str>) -> Option<&'l str> {
+        if !next.is_some_and(Self::is_marker) {
+            return None;
+        }
+        let (marker, rest) = line.trim_start().split_once(' ')?;
+        let bullet = matches!(marker, "*" | "-" | "+");
+        let ordered = marker
+            .strip_suffix(['.', ')'])
+            .is_some_and(|n| !n.is_empty() && n.chars().all(|c| c.is_ascii_digit()));
+        ((bullet || ordered) && !rest.trim().is_empty()).then_some(marker)
+    }
+}
+
+impl Entry<'_> {
+    /// The level and text of a `#` heading.
+    fn heading(line: &str) -> Option<(usize, &str)> {
+        let level = line.chars().take_while(|&c| c == '#').count();
+        let rest = &line[level..];
+        if !(1..=6).contains(&level) || !rest.starts_with([' ', '\t']) {
+            return None;
+        }
+        let mut text = rest.trim();
+        // A trailing `{#id}` or attribute list.
+        if text.ends_with('}')
+            && let Some(start) = text.rfind('{')
+        {
+            text = text[..start].trim_end();
+        }
+        let text = text.trim_end_matches('#').trim_end();
+        (!text.is_empty()).then_some((level, text))
+    }
+
+    /// The id kramdown gives a heading with GFM input, Jekyll's default: the
+    /// text in lowercase, keeping only word characters, spaces and dashes,
+    /// with spaces made dashes.
+    fn header_id(text: &str) -> String {
+        let id: String = text
+            .chars()
+            .filter(|c| c.is_alphanumeric() || matches!(c, '_' | ' ' | '-'))
+            .flat_map(char::to_lowercase)
+            .map(|c| if c == ' ' { '-' } else { c })
+            .collect();
+        if id.is_empty() {
+            "section".to_owned()
+        } else {
+            id
+        }
+    }
+}
+
+/// kramdown parses Markdown inside an HTML element marked `markdown="1"`.
+/// CommonMark only does so when blank lines separate the tags from the
+/// Markdown, so this adds them.
+struct MarkdownElements {
+    out: String,
+    /// The elements still open, innermost last.
+    open: Vec<Element>,
+    fence: Fence,
+}
+
+/// An open `markdown="1"` element.
+struct Element {
+    name: String,
+    /// How many elements of the same name are open inside it.
+    depth: usize,
+}
+
+impl MarkdownElements {
+    fn separate(markdown: &str) -> Cow<'_, str> {
+        if !markdown.contains("markdown=\"1\"") {
+            return Cow::Borrowed(markdown);
+        }
+        let mut elements = Self {
+            out: String::with_capacity(markdown.len() + 64),
+            open: Vec::new(),
+            fence: Fence::default(),
+        };
+        for line in markdown.split_inclusive('\n') {
+            elements.line(line);
+        }
+        Cow::Owned(elements.out)
+    }
+
+    fn line(&mut self, line: &str) {
+        if self.fence.contains(line) {
+            self.out.push_str(line);
+            return;
+        }
+        let trimmed = line.trim();
+        if self.closes(trimmed) {
+            self.out.push('\n');
+            self.out.push_str(line);
+            return;
+        }
+        self.out.push_str(line);
+        if let Some(name) = Element::opened_by(trimmed) {
+            if !line.ends_with('\n') {
+                self.out.push('\n');
+            }
+            self.out.push('\n');
+            self.open.push(Element { name, depth: 0 });
+        }
+    }
+
+    /// Whether `trimmed` closes the innermost open element, keeping count of
+    /// elements of the same name opened inside it.
+    fn closes(&mut self, trimmed: &str) -> bool {
+        let Some(element) = self.open.last_mut() else {
+            return false;
+        };
+        if trimmed.starts_with(&format!("</{}", element.name)) {
+            if element.depth == 0 {
+                self.open.pop();
+                return true;
+            }
+            element.depth -= 1;
+        } else if trimmed.starts_with(&format!("<{}", element.name)) {
+            element.depth += 1;
+        }
+        false
+    }
+}
+
+impl Element {
+    /// The name of the `markdown="1"` element `trimmed` opens, if it's a line
+    /// of only that tag.
+    fn opened_by(trimmed: &str) -> Option<String> {
+        if !(trimmed.starts_with('<')
+            && trimmed.ends_with('>')
+            && trimmed.contains("markdown=\"1\""))
+        {
+            return None;
+        }
+        let name: String = trimmed[1..]
+            .chars()
+            .take_while(|c| c.is_ascii_alphanumeric())
+            .collect();
+        (!name.is_empty()).then_some(name)
+    }
+}
+
+/// Keeps track of fenced code blocks, where nothing is kramdown.
+#[derive(Default)]
+struct Fence {
+    /// The marker of the open fence, if inside one.
+    open: Option<&'static str>,
+}
+
+impl Fence {
+    /// Whether `line` is part of a fenced code block, fences included.
+    fn contains(&mut self, line: &str) -> bool {
+        let trimmed = line.trim();
+        if let Some(marker) = self.open {
+            if trimmed.starts_with(marker) {
+                self.open = None;
+            }
+            return true;
+        }
+        for marker in ["```", "~~~"] {
+            if trimmed.starts_with(marker) {
+                self.open = Some(marker);
+                return true;
+            }
+        }
+        false
+    }
 }
 
 #[cfg(test)]
@@ -223,14 +296,14 @@ mod tests {
     fn tables_of_contents() {
         let src = "# Title\n{:.no_toc}\n\n* TOC\n{:toc}\n\n## One `a`\n\n```\n# not\n```\n\n### Two\n\n## One `a`\n";
         assert_eq!(
-            table_of_contents(src),
+            Toc::expand(src),
             "# Title\n{:.no_toc}\n\n* [One `a`](#one-a)\n  * [Two](#two)\n* [One `a`](#one-a-1)\n\n## One `a`\n\n```\n# not\n```\n\n### Two\n\n## One `a`\n"
         );
         assert_eq!(
-            header_id("4. Relating to Recent Posts"),
+            Entry::header_id("4. Relating to Recent Posts"),
             "4-relating-to-recent-posts"
         );
-        assert!(matches!(table_of_contents("* TOC\n"), Cow::Borrowed(_)));
+        assert!(matches!(Toc::expand("* TOC\n"), Cow::Borrowed(_)));
     }
 
     #[test]
