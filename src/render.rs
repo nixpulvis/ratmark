@@ -77,7 +77,7 @@ struct Table {
 
 pub(crate) struct Renderer<'t> {
     theme: &'t Theme,
-    out: Writer,
+    writer: Writer,
     headings: Vec<Heading>,
     open: Vec<Open>,
     capture: Option<Capture>,
@@ -88,7 +88,7 @@ impl<'t> Renderer<'t> {
     pub fn new(theme: &'t Theme, width: u16) -> Self {
         Self {
             theme,
-            out: Writer::new(width),
+            writer: Writer::new(width),
             headings: Vec::new(),
             open: Vec::new(),
             capture: None,
@@ -107,7 +107,7 @@ impl<'t> Renderer<'t> {
                 None => self.event(event),
             }
         }
-        let (lines, links) = self.out.finish();
+        let (lines, links) = self.writer.finish();
         Rendered {
             lines,
             links,
@@ -128,7 +128,7 @@ impl<'t> Renderer<'t> {
 
     fn piece(&mut self, text: impl Into<String>, style: Style) {
         let link = self.link();
-        self.out.piece(text, style, link);
+        self.writer.piece(text, style, link);
     }
 
     fn text(&mut self, text: impl Into<String>) {
@@ -149,7 +149,7 @@ impl<'t> Renderer<'t> {
 
     /// Opens an element that draws `prefix` before each of its lines.
     fn open_prefixed(&mut self, kind: Kind, prefix: Prefix, patch: Style) {
-        self.out.push_prefix(prefix);
+        self.writer.push_prefix(prefix);
         self.open(kind, patch);
         if let Some(open) = self.open.last_mut() {
             open.prefixed = true;
@@ -157,7 +157,7 @@ impl<'t> Renderer<'t> {
     }
 
     fn open_link(&mut self, kind: Kind, url: &str) {
-        let link = self.out.link(url);
+        let link = self.writer.link(url);
         self.open(kind, self.theme.link);
         if let Some(open) = self.open.last_mut() {
             open.link = Some(link);
@@ -176,7 +176,7 @@ impl<'t> Renderer<'t> {
         }
         while let Some(open) = self.open.pop() {
             if open.prefixed {
-                self.out.pop_prefix();
+                self.writer.pop_prefix();
             }
             if kind(&open.kind) {
                 return Some(open);
@@ -246,12 +246,12 @@ impl<'t> Renderer<'t> {
                 self.piece(format!("[{label}]"), style);
             }
             Event::SoftBreak => self.text(" "),
-            Event::HardBreak => self.out.line_break(),
+            Event::HardBreak => self.writer.line_break(),
             Event::Rule => {
-                self.out.flush();
-                let rule = "─".repeat(self.out.available());
-                self.out.emit(vec![Piece::new(rule, self.theme.rule)]);
-                self.out.set_gap(true);
+                self.writer.flush();
+                let rule = "─".repeat(self.writer.available());
+                self.writer.emit(vec![Piece::new(rule, self.theme.rule)]);
+                self.writer.set_gap(true);
             }
             Event::TaskListMarker(done) => {
                 let mark = if done { "[x] " } else { "[ ] " };
@@ -262,22 +262,22 @@ impl<'t> Renderer<'t> {
 
     fn start(&mut self, tag: Tag<'_>) {
         match tag {
-            Tag::Paragraph => self.out.flush(),
+            Tag::Paragraph => self.writer.flush(),
             Tag::Heading { level, .. } => {
-                self.out.flush();
+                self.writer.flush();
                 let level = heading_index(level);
                 self.heading_marker(level);
                 self.open(Kind::Heading, self.theme.headings[level]);
             }
             Tag::BlockQuote(_) => {
-                self.out.flush();
+                self.writer.flush();
                 // The gap before a quote goes outside it, without its bar.
-                self.out.pay_gap();
+                self.writer.pay_gap();
                 let bar = Piece::new("▎ ", self.theme.quote_marker);
                 self.open_prefixed(Kind::Quote, Prefix::same(bar), self.theme.quote);
             }
             Tag::CodeBlock(kind) => {
-                self.out.flush();
+                self.writer.flush();
                 let lang = match kind {
                     CodeBlockKind::Fenced(info) => {
                         info.split([' ', ',', '{']).next().unwrap_or("").to_owned()
@@ -290,15 +290,15 @@ impl<'t> Renderer<'t> {
                 });
             }
             Tag::HtmlBlock => {
-                self.out.flush();
+                self.writer.flush();
                 self.capture = Some(Capture::HtmlBlock(String::new()));
             }
             Tag::List(start) => {
-                self.out.flush();
+                self.writer.flush();
                 self.open(Kind::List(start), Style::new());
             }
             Tag::Item => {
-                self.out.flush();
+                self.writer.flush();
                 let depth = self
                     .open
                     .iter()
@@ -322,19 +322,19 @@ impl<'t> Renderer<'t> {
                 self.open_prefixed(Kind::Item, prefix, Style::new());
             }
             Tag::FootnoteDefinition(label) => {
-                self.out.flush();
+                self.writer.flush();
                 let marker = Piece::new(format!("[{label}] "), self.theme.footnote);
                 let prefix = Prefix::hanging(marker, self.theme.text);
                 self.open_prefixed(Kind::Footnote, prefix, Style::new());
             }
-            Tag::DefinitionList | Tag::DefinitionListTitle => self.out.flush(),
+            Tag::DefinitionList | Tag::DefinitionListTitle => self.writer.flush(),
             Tag::DefinitionListDefinition => {
-                self.out.flush();
+                self.writer.flush();
                 let indent = Prefix::same(Piece::new("  ", self.theme.text));
                 self.open_prefixed(Kind::Definition, indent, Style::new());
             }
             Tag::Table(alignments) => {
-                self.out.flush();
+                self.writer.flush();
                 self.table = Some(Table {
                     alignments,
                     rows: Vec::new(),
@@ -361,13 +361,13 @@ impl<'t> Renderer<'t> {
 
     fn end(&mut self, tag: TagEnd) {
         match tag {
-            TagEnd::Paragraph | TagEnd::DefinitionList => self.out.end_block(),
+            TagEnd::Paragraph | TagEnd::DefinitionList => self.writer.end_block(),
             TagEnd::Heading(level) => {
                 self.close(|k| *k == Kind::Heading);
                 // Skip the `#` marks, if there are any.
                 let marks = usize::from(self.theme.heading_marker.is_some());
                 let text: String = self
-                    .out
+                    .writer
                     .inline()
                     .iter()
                     .skip(marks)
@@ -379,39 +379,39 @@ impl<'t> Renderer<'t> {
                 self.headings.push(Heading {
                     level: heading_index(level) as u8 + 1,
                     text: text.trim().to_owned(),
-                    line: self.out.next_block_line(),
+                    line: self.writer.next_block_line(),
                 });
-                self.out.end_block();
+                self.writer.end_block();
             }
             TagEnd::BlockQuote(_) => {
-                self.out.flush();
+                self.writer.flush();
                 self.close(|k| *k == Kind::Quote);
-                self.out.set_gap(true);
+                self.writer.set_gap(true);
             }
             TagEnd::List(_) => {
-                self.out.flush();
+                self.writer.flush();
                 self.close(|k| matches!(k, Kind::List(_)));
                 // A list nested in a tight list's item runs straight on to
                 // the next item.
                 let nested = self.is_open(|k| matches!(k, Kind::List(_)));
-                self.out.set_gap(!nested);
+                self.writer.set_gap(!nested);
             }
             TagEnd::Item => {
-                self.out.flush();
+                self.writer.flush();
                 self.close(|k| *k == Kind::Item);
             }
             TagEnd::DefinitionListDefinition => {
-                self.out.flush();
+                self.writer.flush();
                 self.close(|k| *k == Kind::Definition);
             }
             TagEnd::FootnoteDefinition => {
-                self.out.flush();
+                self.writer.flush();
                 self.close(|k| *k == Kind::Footnote);
-                self.out.set_gap(true);
+                self.writer.set_gap(true);
             }
-            TagEnd::DefinitionListTitle => self.out.flush(),
+            TagEnd::DefinitionListTitle => self.writer.flush(),
             TagEnd::TableCell => {
-                let cell = self.out.take_inline();
+                let cell = self.writer.take_inline();
                 if let Some(table) = &mut self.table {
                     table.row.push(cell);
                 }
@@ -443,9 +443,9 @@ impl<'t> Renderer<'t> {
         } else {
             format!("image: {}", alt.trim())
         };
-        let link = self.out.link(url);
+        let link = self.writer.link(url);
         let style = self.style().patch(self.theme.link).patch(self.theme.image);
-        self.out.piece(format!("[{label}]"), style, Some(link));
+        self.writer.piece(format!("[{label}]"), style, Some(link));
     }
 
     fn code_block(&mut self, lang: &str, code: &str) {
@@ -453,7 +453,7 @@ impl<'t> Renderer<'t> {
         let base = self.theme.code_block;
         let lines = highlighted(&code, lang, self.theme)
             .unwrap_or_else(|| code.lines().map(|l| vec![Piece::new(l, base)]).collect());
-        let width = self.out.available();
+        let width = self.writer.available();
         // One column of padding on each side.
         let inner = width.saturating_sub(2).max(1);
         for line in lines {
@@ -479,10 +479,10 @@ impl<'t> Renderer<'t> {
                 let mut pieces = vec![Piece::new(" ", base)];
                 pieces.extend(row);
                 pieces.push(Piece::new(" ".repeat(width.saturating_sub(used + 1)), base));
-                self.out.emit(pieces);
+                self.writer.emit(pieces);
             }
         }
-        self.out.set_gap(true);
+        self.writer.set_gap(true);
     }
 
     fn end_row(&mut self) {
@@ -514,7 +514,7 @@ impl<'t> Renderer<'t> {
             }
         }
         // Narrow the widest column until the table fits, wrapping its cells.
-        let available = self.out.available();
+        let available = self.writer.available();
         let separators = 3 * (columns - 1);
         while widths.iter().sum::<usize>() + separators > available {
             let (i, &widest) = widths
@@ -556,7 +556,7 @@ impl<'t> Renderer<'t> {
                     pieces.extend(line);
                     pieces.push(Piece::new(" ".repeat(right), self.theme.text));
                 }
-                self.out.emit(pieces);
+                self.writer.emit(pieces);
             }
             let last = r + 1 == table.rows.len();
             if !last && (r == 0 || self.theme.table_row_rules) {
@@ -565,15 +565,15 @@ impl<'t> Renderer<'t> {
                     .map(|w| "─".repeat(*w))
                     .collect::<Vec<_>>()
                     .join("─┼─");
-                self.out.emit(vec![Piece::new(rule, border)]);
+                self.writer.emit(vec![Piece::new(rule, border)]);
             }
         }
-        self.out.set_gap(true);
+        self.writer.set_gap(true);
     }
 
     /// Draws an HTML block once it's been read whole.
     fn html_block(&mut self, html: &str) {
-        let before = self.out.lines_written();
+        let before = self.writer.lines_written();
         self.html_tokens(html);
         #[cfg(feature = "html")]
         {
@@ -594,10 +594,10 @@ impl<'t> Renderer<'t> {
         }
         // Lots of HTML, like a closing `</div>`, shows nothing, and
         // shouldn't leave a blank line behind.
-        if self.out.inline_is_blank() && self.out.lines_written() == before {
-            self.out.take_inline();
+        if self.writer.inline_is_blank() && self.writer.lines_written() == before {
+            self.writer.take_inline();
         } else {
-            self.out.end_block();
+            self.writer.end_block();
         }
     }
 
@@ -630,35 +630,35 @@ impl<'t> Renderer<'t> {
                             self.open_link(Kind::Html(name.clone()), href);
                         }
                     }
-                    "br" => self.out.line_break(),
+                    "br" => self.writer.line_break(),
                     "pre" => {
-                        self.out.flush();
+                        self.writer.flush();
                         self.capture = Some(Capture::Pre(String::new()));
                     }
                     "li" => {
                         // Like a Markdown item, wrapped lines hang under
                         // the text, not the bullet.
-                        self.out.flush();
+                        self.writer.flush();
                         let bullet = Piece::new(BULLETS[0], self.theme.list_marker);
                         let prefix = Prefix::hanging(bullet, self.theme.text);
                         self.open_prefixed(Kind::HtmlItem, prefix, Style::new());
                     }
                     "p" | "div" | "ul" | "ol" | "tr" | "table" | "blockquote" | "section"
                     | "article" | "header" | "footer" | "figure" | "dl" | "dt" | "dd" => {
-                        self.out.hard_break()
+                        self.writer.hard_break()
                     }
                     "hr" => {
-                        self.out.hard_break();
+                        self.writer.hard_break();
                         self.text("───");
-                        self.out.line_break();
+                        self.writer.line_break();
                     }
                     "h1" | "h2" | "h3" | "h4" | "h5" | "h6" => {
                         // A blank line before a heading, as in Markdown.
-                        self.out.hard_break();
-                        if self.out.inline().is_empty() {
-                            self.out.set_gap(true);
+                        self.writer.hard_break();
+                        if self.writer.inline().is_empty() {
+                            self.writer.set_gap(true);
                         } else {
-                            self.out.line_break();
+                            self.writer.line_break();
                         }
                         let level = usize::from(name.as_bytes()[1] - b'1');
                         self.heading_marker(level);
@@ -690,12 +690,12 @@ impl<'t> Renderer<'t> {
                 },
                 Token::Close(name) => match name.as_str() {
                     "li" if self.is_open(|k| *k == Kind::HtmlItem) => {
-                        self.out.flush();
+                        self.writer.flush();
                         self.close(|k| *k == Kind::HtmlItem);
                     }
                     "p" | "div" | "li" | "ul" | "ol" | "tr" | "table" | "blockquote"
                     | "section" | "article" | "header" | "footer" | "figure" | "dl" | "dt"
-                    | "dd" => self.out.hard_break(),
+                    | "dd" => self.writer.hard_break(),
                     "td" | "th" => self.text(" "),
                     _ => {
                         // Only when it's the innermost, as HTML is often
@@ -705,7 +705,7 @@ impl<'t> Renderer<'t> {
                             self.open.pop();
                         }
                         if name.len() == 2 && name.starts_with('h') {
-                            self.out.hard_break();
+                            self.writer.hard_break();
                         }
                     }
                 },
