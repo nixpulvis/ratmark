@@ -524,7 +524,7 @@ fn heading_index(level: HeadingLevel) -> usize {
 #[cfg(feature = "syntax")]
 fn highlighted(code: &str, lang: &str, theme: &Theme) -> Option<Vec<Vec<Piece>>> {
     let name = theme.syntax?;
-    let lines = crate::highlight::highlight(code, lang, name)?;
+    let lines = crate::syntax::highlight(code, lang, name)?;
     Some(
         lines
             .into_iter()

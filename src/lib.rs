@@ -35,11 +35,11 @@ use ratatui_core::text::{Line, Text};
 
 #[cfg(feature = "front-matter")]
 pub mod front_matter;
-#[cfg(feature = "syntax")]
-mod highlight;
 #[cfg(feature = "kramdown")]
 mod kramdown;
 mod render;
+#[cfg(feature = "syntax")]
+mod syntax;
 mod table;
 mod theme;
 mod view;
