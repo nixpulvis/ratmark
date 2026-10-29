@@ -95,9 +95,9 @@ impl<'t> Renderer<'t> {
     pub fn run(mut self, markdown: &str) -> Rendered {
         #[cfg(feature = "kramdown")]
         let markdown = crate::kramdown::preprocess(markdown);
-        #[cfg(feature = "kramdown")]
-        let markdown: &str = &markdown;
-        for event in Parser::new_ext(markdown, options()) {
+        #[cfg(not(feature = "kramdown"))]
+        let markdown = std::borrow::Cow::Borrowed(markdown);
+        for event in Parser::new_ext(&markdown, options()) {
             self.event(event);
         }
         self.flush();
