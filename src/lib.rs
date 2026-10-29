@@ -42,6 +42,7 @@ mod html;
 #[cfg(feature = "kramdown")]
 mod kramdown;
 mod render;
+mod table;
 mod theme;
 mod view;
 mod wrap;

@@ -1,11 +1,12 @@
 //! Walks pulldown-cmark's events and lays the document out in lines.
 
-use pulldown_cmark::{Alignment, CodeBlockKind, Event, HeadingLevel, Options, Parser, Tag, TagEnd};
+use pulldown_cmark::{CodeBlockKind, Event, HeadingLevel, Options, Parser, Tag, TagEnd};
 use ratatui_core::style::Style;
 
 #[cfg(feature = "html")]
 use crate::html::{self, Token};
-use crate::wrap::{Inline, Piece, wrap};
+use crate::table::Table;
+use crate::wrap::{Inline, Piece};
 use crate::writer::{Prefix, Writer};
 use crate::{Heading, Rendered, Theme};
 
@@ -202,11 +203,7 @@ impl<'t> Renderer<'t> {
             }
             Tag::Table(alignments) => {
                 self.writer.flush();
-                self.table = Some(Table {
-                    alignments,
-                    rows: Vec::new(),
-                    row: Vec::new(),
-                });
+                self.table = Some(Table::new(alignments));
             }
             Tag::TableHead => self.open(Kind::TableHead, self.theme.table_header),
             Tag::TableRow | Tag::TableCell => {}
@@ -280,7 +277,7 @@ impl<'t> Renderer<'t> {
             TagEnd::TableCell => {
                 let cell = self.writer.take_inline();
                 if let Some(table) = &mut self.table {
-                    table.row.push(cell);
+                    table.push_cell(cell);
                 }
             }
             TagEnd::TableHead => {
@@ -356,85 +353,15 @@ impl<'t> Renderer<'t> {
         let Some(table) = self.table.take() else {
             return;
         };
-        let columns = table.rows.iter().map(Vec::len).max().unwrap_or(0);
-        if columns == 0 {
-            return;
-        }
-        let cell_width = |cell: &Vec<Inline>| {
-            wrap(cell, usize::MAX / 2)
-                .iter()
-                .map(|l| l.iter().map(Piece::width).sum::<usize>())
-                .max()
-                .unwrap_or(0)
-        };
-        let mut widths = vec![1; columns];
-        for row in &table.rows {
-            for (i, cell) in row.iter().enumerate() {
-                widths[i] = widths[i].max(cell_width(cell));
-            }
-        }
-        // Narrow the widest column until the table fits, wrapping its cells.
-        let available = self.writer.available();
-        let separators = 3 * (columns - 1);
-        while widths.iter().sum::<usize>() + separators > available {
-            let (i, &widest) = widths
-                .iter()
-                .enumerate()
-                .max_by_key(|(_, w)| **w)
-                .expect("columns > 0");
-            if widest <= 3 {
-                break;
-            }
-            widths[i] -= 1;
-        }
-
-        let border = self.theme.table_border;
-        for (r, row) in table.rows.iter().enumerate() {
-            let cells: Vec<Vec<Vec<Piece>>> = (0..columns)
-                .map(|i| {
-                    row.get(i)
-                        .map(|cell| wrap(cell, widths[i]))
-                        .unwrap_or_default()
-                })
-                .collect();
-            let height = cells.iter().map(Vec::len).max().unwrap_or(0).max(1);
-            for y in 0..height {
-                let mut pieces = Vec::new();
-                for (i, cell) in cells.iter().enumerate() {
-                    if i > 0 {
-                        pieces.push(Piece::new(" │ ", border));
-                    }
-                    let line = cell.get(y).cloned().unwrap_or_default();
-                    let used: usize = line.iter().map(Piece::width).sum();
-                    let pad = widths[i].saturating_sub(used);
-                    let (left, right) = match table.alignments.get(i) {
-                        Some(Alignment::Right) => (pad, 0),
-                        Some(Alignment::Center) => (pad / 2, pad - pad / 2),
-                        _ => (0, pad),
-                    };
-                    pieces.push(Piece::new(" ".repeat(left), self.theme.text));
-                    pieces.extend(line);
-                    pieces.push(Piece::new(" ".repeat(right), self.theme.text));
-                }
-                self.writer.emit(pieces);
-            }
-            let last = r + 1 == table.rows.len();
-            if !last && (r == 0 || self.theme.table_row_rules) {
-                let rule = widths
-                    .iter()
-                    .map(|w| "─".repeat(*w))
-                    .collect::<Vec<_>>()
-                    .join("─┼─");
-                self.writer.emit(vec![Piece::new(rule, border)]);
-            }
+        for line in table.lines(self.writer.available(), self.theme) {
+            self.writer.emit(line);
         }
         self.writer.set_gap(true);
     }
 
     fn end_row(&mut self) {
         if let Some(table) = &mut self.table {
-            let row = std::mem::take(&mut table.row);
-            table.rows.push(row);
+            table.end_row();
         }
     }
 
@@ -709,12 +636,6 @@ enum Capture {
     /// The text of an HTML `<pre>`, kept as is until it closes.
     #[cfg(feature = "html")]
     Pre(String),
-}
-
-struct Table {
-    alignments: Vec<Alignment>,
-    rows: Vec<Vec<Vec<Inline>>>,
-    row: Vec<Vec<Inline>>,
 }
 
 const BULLETS: [&str; 3] = ["• ", "◦ ", "▪ "];
