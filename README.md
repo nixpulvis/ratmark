@@ -23,6 +23,12 @@ which is what makes keyboard focus and clicks work on links in the middle of
 wrapped text. For drawing a document some other way, `Rendered::render`
 returns the wrapped lines and link positions directly.
 
+With the `native-links` feature, the view also writes each link's URL into
+its cells, so backends that support it draw links the terminal or browser
+knows about, like OSC 8. It needs Ratatui's cell extensions, which aren't
+released yet ([ratatui#2854]), and `MarkdownState::with_base` makes the links
+absolute.
+
 It handles CommonMark plus tables, footnotes, strikethrough, task lists and
 math. Code blocks can be syntax highlighted with [syntect], through the
 `syntax` feature, which is off by default. It uses syntect's pure Rust regex
@@ -75,3 +81,4 @@ Licensed under either of [Apache License, Version 2.0](LICENSE-APACHE) or
 [html5gum]: https://github.com/untitaker/html5gum
 [Ratzilla]: https://github.com/orhun/ratzilla
 [avid-rustacean]: https://github.com/TylerBloom/avid-rustacean
+[ratatui#2854]: https://github.com/ratatui/ratatui/issues/2854

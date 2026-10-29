@@ -5,7 +5,7 @@ use ratatui_core::layout::Rect;
 use ratatui_core::style::{Modifier, Style};
 use ratatui_core::widgets::StatefulWidget;
 
-use crate::{Link, Rendered, Theme};
+use crate::{Link, Region, Rendered, Theme};
 
 /// Draws a [`MarkdownState`]'s document, laid out to fit the area it's
 /// given, scrolled and with its focused link highlighted.
@@ -58,6 +58,9 @@ pub struct MarkdownState {
     area: Rect,
     /// A `#section` to scroll to once laid out.
     anchor: Option<String>,
+    /// The document's own address, to make its links absolute.
+    #[cfg(feature = "native-links")]
+    base: Option<url::Url>,
 }
 
 impl MarkdownState {
@@ -66,6 +69,15 @@ impl MarkdownState {
             markdown: markdown.into(),
             ..Self::default()
         }
+    }
+
+    /// Sets the document's own address, so the links its cells carry are
+    /// absolute and work outside the page, like in a terminal. An address
+    /// that isn't a valid absolute URL is ignored, leaving links as written.
+    #[cfg(feature = "native-links")]
+    pub fn with_base(mut self, url: &str) -> Self {
+        self.base = url::Url::parse(url).ok();
+        self
     }
 
     /// The Markdown being shown.
@@ -251,22 +263,53 @@ impl StatefulWidget for MarkdownView<'_> {
         {
             buf.set_line(area.x, area.y + i as u16, line, area.width);
         }
+        #[cfg(feature = "native-links")]
+        for (i, link) in rendered.links.iter().enumerate() {
+            // One id per link, so a terminal treats the pieces of a wrapped
+            // link as one.
+            let url = match &state.base {
+                Some(base) => absolute(base, &link.url),
+                None => link.url.clone(),
+            };
+            let hyperlink =
+                ratatui_core::buffer::Hyperlink::new(&url).with_id(format!("ratmark-{i}"));
+            for region in &link.regions {
+                if let Some(rect) = region_rect(region, state.scroll, area) {
+                    buf.set_hyperlink(rect, Some(&hyperlink));
+                }
+            }
+        }
         if let Some(link) = state.focus.and_then(|i| rendered.links.get(i)) {
             for region in &link.regions {
-                let Some(row) = region
-                    .line
-                    .checked_sub(state.scroll)
-                    .filter(|r| *r < height)
-                else {
-                    continue;
-                };
-                let end = region.end.min(area.width);
-                let start = region.start.min(end);
-                let rect = Rect::new(area.x + start, area.y + row as u16, end - start, 1);
-                buf.set_style(rect, self.focus);
+                if let Some(rect) = region_rect(region, state.scroll, area) {
+                    buf.set_style(rect, self.focus);
+                }
             }
         }
     }
+}
+
+/// Where a link's region is on screen, if it's scrolled into view.
+fn region_rect(region: &Region, scroll: usize, area: Rect) -> Option<Rect> {
+    let row = region
+        .line
+        .checked_sub(scroll)
+        .filter(|r| *r < usize::from(area.height))?;
+    let end = region.end.min(area.width);
+    let start = region.start.min(end);
+    Some(Rect::new(
+        area.x + start,
+        area.y + row as u16,
+        end - start,
+        1,
+    ))
+}
+
+/// Resolves `url` against `base`, the address of the page it's on. A link
+/// that can't be resolved is left as written.
+#[cfg(feature = "native-links")]
+fn absolute(base: &url::Url, url: &str) -> String {
+    base.join(url).map_or_else(|_| url.to_owned(), String::from)
 }
 
 /// Loosely matches a heading to a `#section` link.
@@ -336,6 +379,40 @@ mod tests {
         let buf = draw(&mut state, 20, 1);
         assert!(buf[(3, 0)].modifier.contains(Modifier::REVERSED));
         assert!(!buf[(2, 0)].modifier.contains(Modifier::REVERSED));
+    }
+
+    #[cfg(feature = "native-links")]
+    #[test]
+    fn cells_carry_links() {
+        let mut state = MarkdownState::new("go [over there](/x) now");
+        let buf = draw(&mut state, 10, 2);
+        assert_eq!(buf[(3, 0)].hyperlink().map(|h| h.uri()), Some("/x"));
+        assert_eq!(
+            buf[(0, 1)].hyperlink().map(|h| h.id()),
+            Some(Some("ratmark-0"))
+        );
+        assert_eq!(buf[(2, 0)].hyperlink(), None);
+    }
+
+    #[cfg(feature = "native-links")]
+    #[test]
+    fn absolute_links() {
+        let base = "https://a.com/x/page";
+        let url = url::Url::parse(base).unwrap();
+        assert_eq!(absolute(&url, "/root"), "https://a.com/root");
+        assert_eq!(absolute(&url, "sib"), "https://a.com/x/sib");
+        assert_eq!(absolute(&url, "../up"), "https://a.com/up");
+        assert_eq!(absolute(&url, "#s"), "https://a.com/x/page#s");
+        assert_eq!(absolute(&url, "//c.com/y"), "https://c.com/y");
+        assert_eq!(absolute(&url, "mailto:a@b.c"), "mailto:a@b.c");
+        let root = url::Url::parse("https://a.com").unwrap();
+        assert_eq!(absolute(&root, "p"), "https://a.com/p");
+        let mut state = MarkdownState::new("[x](y)").with_base(base);
+        let buf = draw(&mut state, 10, 1);
+        assert_eq!(
+            buf[(0, 0)].hyperlink().map(|h| h.uri()),
+            Some("https://a.com/x/y")
+        );
     }
 
     #[test]

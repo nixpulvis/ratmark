@@ -29,6 +29,10 @@
 //! `{:.no_toc}` are dropped, `{:toc}` lists become tables of contents, and
 //! Markdown inside `markdown="1"` elements is rendered as Markdown.
 //!
+//! The `native-links` feature, off by default, writes each link's URL into
+//! the cells [`MarkdownView`] draws, so backends that support it show links
+//! the terminal or browser knows about. See [`MarkdownState::with_base`].
+//!
 //! [Ratatui]: https://ratatui.rs
 
 use ratatui_core::text::{Line, Text};

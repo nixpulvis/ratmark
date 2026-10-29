@@ -18,6 +18,13 @@ syntax = ["dep:syntect"]
 front-matter = []
 # Understand Markdown written for kramdown, like Jekyll sites.
 kramdown = []
+# Mark links in MarkdownView's cells, so backends that support it draw real
+# links, like OSC 8 in a terminal. Needs Ratatui's cell extensions, which
+# aren't released yet, see ratatui/ratatui#2854. Links are made absolute
+# with the url crate. To leave out its Unicode domain support, which is most
+# of its size, pin `cargo update -p idna_adapter --precise 1.0.0` in your
+# application.
+native-links = ["ratatui-core/cell-extensions", "dep:url"]
 # Show the text, links and simple formatting of HTML in the Markdown, read
 # with html5gum. Without it, HTML is left out.
 html = ["dep:html5gum"]
@@ -28,6 +35,11 @@ ratatui-core = "0.1"
 unicode-width = "0.2"
 syntect = { version = "5.3", optional = true, default-features = false, features = ["default-syntaxes", "default-themes", "regex-fancy"] }
 html5gum = { version = "0.9", optional = true }
+url = { version = "2.5", optional = true }
 
 [dev-dependencies]
 unicode-width = "0.2"
+
+# Ratatui's cell extensions, proposed in ratatui/ratatui#2854.
+[patch.crates-io]
+ratatui-core = { git = "https://github.com/WeirdBrains/ratatui", branch = "multi-char-cells" }
