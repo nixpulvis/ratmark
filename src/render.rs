@@ -330,12 +330,11 @@ impl<'t> Renderer<'t> {
     fn code_block(&mut self, lang: &str, code: &str) {
         let code = code.replace('\t', "    ");
         let base = self.theme.code_block;
+        let plain = || code.lines().map(|l| vec![Piece::new(l, base)]).collect();
         #[cfg(feature = "syntax")]
-        let highlighted = crate::syntax::highlight(&code, lang, self.theme);
+        let lines = crate::syntax::highlight(&code, lang, self.theme).unwrap_or_else(plain);
         #[cfg(not(feature = "syntax"))]
-        let highlighted = None;
-        let lines: Vec<Vec<Piece>> = highlighted
-            .unwrap_or_else(|| code.lines().map(|l| vec![Piece::new(l, base)]).collect());
+        let lines: Vec<Vec<Piece>> = plain();
         let width = self.writer.available();
         // One column of padding on each side.
         let inner = width.saturating_sub(2).max(1);
