@@ -325,16 +325,15 @@ impl<'t> Renderer<'t> {
         }
     }
 
+    // Without the `syntax` feature, the language goes unused.
+    #[cfg_attr(not(feature = "syntax"), allow(unused_variables))]
     fn code_block(&mut self, lang: &str, code: &str) {
         let code = code.replace('\t', "    ");
         let base = self.theme.code_block;
         #[cfg(feature = "syntax")]
         let highlighted = crate::syntax::highlight(&code, lang, self.theme);
         #[cfg(not(feature = "syntax"))]
-        let highlighted = {
-            let _ = lang;
-            None
-        };
+        let highlighted = None;
         let lines: Vec<Vec<Piece>> = highlighted
             .unwrap_or_else(|| code.lines().map(|l| vec![Piece::new(l, base)]).collect());
         let width = self.writer.available();
