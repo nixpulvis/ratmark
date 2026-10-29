@@ -352,13 +352,6 @@ impl<'t> Renderer<'t> {
         self.writer.piece(format!("[{label}]"), style, Some(link));
     }
 
-    fn end_row(&mut self) {
-        if let Some(table) = &mut self.table {
-            let row = std::mem::take(&mut table.row);
-            table.rows.push(row);
-        }
-    }
-
     fn table(&mut self) {
         let Some(table) = self.table.take() else {
             return;
@@ -436,6 +429,13 @@ impl<'t> Renderer<'t> {
             }
         }
         self.writer.set_gap(true);
+    }
+
+    fn end_row(&mut self) {
+        if let Some(table) = &mut self.table {
+            let row = std::mem::take(&mut table.row);
+            table.rows.push(row);
+        }
     }
 
     /// Draws an HTML block once it's been read whole.
