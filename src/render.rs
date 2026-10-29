@@ -60,7 +60,7 @@ impl<'t> Renderer<'t> {
             lines,
             links,
             headings: self.headings,
-            // Filled in by `render`, which splits it off first.
+            // Filled in by `Rendered::render`, which splits it off first.
             #[cfg(feature = "front-matter")]
             front_matter: None,
         }
@@ -455,19 +455,18 @@ impl<'t> Renderer<'t> {
 
     /// Closes the innermost open element of `kind`, and anything left open
     /// inside it, like unclosed HTML.
-    fn close(&mut self, kind: impl Fn(&Kind) -> bool) -> Option<Open> {
+    fn close(&mut self, kind: impl Fn(&Kind) -> bool) {
         if !self.is_open(&kind) {
-            return None;
+            return;
         }
         while let Some(open) = self.open.pop() {
             if open.prefixed {
                 self.writer.pop_prefix();
             }
             if kind(&open.kind) {
-                return Some(open);
+                return;
             }
         }
-        None
     }
 }
 
