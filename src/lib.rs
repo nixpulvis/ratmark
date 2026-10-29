@@ -37,8 +37,6 @@ use ratatui_core::text::{Line, Text};
 pub mod front_matter;
 #[cfg(feature = "syntax")]
 mod highlight;
-#[cfg(feature = "html")]
-mod html;
 #[cfg(feature = "kramdown")]
 mod kramdown;
 mod render;

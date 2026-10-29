@@ -208,6 +208,7 @@ impl Writer {
     }
 
     /// Whether the inline content so far shows nothing.
+    #[cfg(feature = "html")]
     pub fn inline_is_blank(&self) -> bool {
         self.inline.iter().all(|i| match i {
             Inline::Piece(p) => p.text.trim().is_empty(),
@@ -215,6 +216,7 @@ impl Writer {
         })
     }
 
+    #[cfg(feature = "html")]
     pub fn lines_written(&self) -> usize {
         self.lines.len()
     }
