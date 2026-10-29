@@ -55,14 +55,15 @@ pub use view::{MarkdownState, MarkdownView};
 /// first and returned in [`Rendered::front_matter`].
 pub fn render(markdown: &str, width: u16, theme: &Theme) -> Rendered {
     #[cfg(feature = "front-matter")]
-    let (front, markdown) = front_matter::split(markdown);
-    #[allow(unused_mut)]
-    let mut rendered = render::Renderer::new(theme, width).run(markdown);
-    #[cfg(feature = "front-matter")]
     {
-        rendered.front_matter = front;
+        let (front_matter, body) = front_matter::FrontMatter::split(markdown);
+        Rendered {
+            front_matter,
+            ..render::Renderer::new(theme, width).run(body)
+        }
     }
-    rendered
+    #[cfg(not(feature = "front-matter"))]
+    render::Renderer::new(theme, width).run(markdown)
 }
 
 /// A rendered document.
