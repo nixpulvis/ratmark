@@ -5,9 +5,9 @@
 //! [`MarkdownState`] holds the document and lays it out again whenever the
 //! width changes.
 //!
-//! Underneath, [`Rendered::render`] lays a document out for a given width and returns
-//! its lines along with where each link landed, for drawing it some other
-//! way.
+//! Underneath, [`Rendered::render`] lays a document out for a given width
+//! and returns its lines along with where each link landed, for drawing it
+//! some other way.
 //!
 //! ```
 //! let rendered = ratmark::Rendered::render("# Hi\n\nSee [the docs](https://docs.rs).", 40, &ratmark::Theme::default());
