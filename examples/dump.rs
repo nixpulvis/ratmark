@@ -9,7 +9,7 @@ fn main() {
         .next()
         .map_or(80, |w| w.parse().expect("width is a number"));
     let markdown = std::fs::read_to_string(path).expect("readable file");
-    let rendered = ratmark::render(&markdown, width, &ratmark::Theme::default());
+    let rendered = ratmark::Rendered::new(&markdown, width, &ratmark::Theme::default());
     for line in &rendered.lines {
         let text: String = line.spans.iter().map(|s| s.content.as_ref()).collect();
         println!("{}", text.trim_end());

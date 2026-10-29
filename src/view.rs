@@ -5,7 +5,7 @@ use ratatui_core::layout::Rect;
 use ratatui_core::style::{Modifier, Style};
 use ratatui_core::widgets::StatefulWidget;
 
-use crate::{Link, Rendered, Theme, render};
+use crate::{Link, Rendered, Theme};
 
 /// Draws a [`MarkdownState`]'s document, laid out to fit the area it's
 /// given, scrolled and with its focused link highlighted.
@@ -230,7 +230,10 @@ impl StatefulWidget for MarkdownView<'_> {
         {
             // Links come out in the same order at any width, so the focus
             // stays put through a resize.
-            state.rendered = Some((area.width, render(&state.markdown, area.width, self.theme)));
+            state.rendered = Some((
+                area.width,
+                Rendered::new(&state.markdown, area.width, self.theme),
+            ));
         }
         state.apply_anchor();
         state.clamp();

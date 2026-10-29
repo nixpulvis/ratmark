@@ -5,12 +5,12 @@
 //! [`MarkdownState`] holds the document and lays it out again whenever the
 //! width changes.
 //!
-//! Underneath, [`render`] lays a document out for a given width and returns
+//! Underneath, [`Rendered::new`] lays a document out for a given width and returns
 //! its lines along with where each link landed, for drawing it some other
 //! way.
 //!
 //! ```
-//! let rendered = ratmark::render("# Hi\n\nSee [the docs](https://docs.rs).", 40, &ratmark::Theme::default());
+//! let rendered = ratmark::Rendered::new("# Hi\n\nSee [the docs](https://docs.rs).", 40, &ratmark::Theme::default());
 //! assert_eq!(rendered.links[0].url, "https://docs.rs");
 //! ```
 //!
@@ -49,23 +49,6 @@ mod writer;
 pub use theme::Theme;
 pub use view::{MarkdownState, MarkdownView};
 
-/// Lays `markdown` out in lines at most `width` columns wide.
-///
-/// With the `front-matter` feature, front matter at the top is split off
-/// first and returned in [`Rendered::front_matter`].
-pub fn render(markdown: &str, width: u16, theme: &Theme) -> Rendered {
-    #[cfg(feature = "front-matter")]
-    {
-        let (front_matter, body) = front_matter::FrontMatter::split(markdown);
-        Rendered {
-            front_matter,
-            ..render::Renderer::new(theme, width).run(body)
-        }
-    }
-    #[cfg(not(feature = "front-matter"))]
-    render::Renderer::new(theme, width).run(markdown)
-}
-
 /// A rendered document.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Rendered {
@@ -81,6 +64,23 @@ pub struct Rendered {
 }
 
 impl Rendered {
+    /// Lays `markdown` out in lines at most `width` columns wide.
+    ///
+    /// With the `front-matter` feature, front matter at the top is split off
+    /// first and returned in [`Rendered::front_matter`].
+    pub fn new(markdown: &str, width: u16, theme: &Theme) -> Self {
+        #[cfg(feature = "front-matter")]
+        {
+            let (front_matter, body) = front_matter::FrontMatter::split(markdown);
+            Self {
+                front_matter,
+                ..render::Renderer::new(theme, width).run(body)
+            }
+        }
+        #[cfg(not(feature = "front-matter"))]
+        render::Renderer::new(theme, width).run(markdown)
+    }
+
     /// The lines as a [`Text`].
     pub fn text(&self) -> Text<'static> {
         Text::from(self.lines.clone())
