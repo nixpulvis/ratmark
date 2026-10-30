@@ -52,7 +52,7 @@ impl<'t> Renderer<'t> {
 
     pub fn run(mut self, markdown: &str) -> Rendered {
         #[cfg(feature = "kramdown")]
-        let markdown = crate::kramdown::preprocess(markdown);
+        let markdown = crate::kramdown::Kramdown::to_commonmark(markdown);
         #[cfg(not(feature = "kramdown"))]
         let markdown = std::borrow::Cow::Borrowed(markdown);
         // Peekable for kramdown's classes after inline code.
@@ -66,7 +66,9 @@ impl<'t> Renderer<'t> {
                 #[cfg(feature = "kramdown")]
                 (None, Event::Code(code)) => {
                     let classes = match events.peek() {
-                        Some(Event::Text(text)) => crate::kramdown::span_classes(text),
+                        Some(Event::Text(text)) => {
+                            crate::kramdown::AttributeList::split(text).0.classes
+                        }
                         _ => Vec::new(),
                     };
                     let style = self.code_style();
@@ -135,7 +137,7 @@ impl<'t> Renderer<'t> {
                 // kramdown attribute lists, like `{:.no_toc}`, mean nothing
                 // here and would otherwise show up as text.
                 #[cfg(feature = "kramdown")]
-                let text = crate::kramdown::strip_attribute_lists(&text);
+                let text = crate::kramdown::AttributeList::split(&text).1;
                 if !text.is_empty() {
                     self.text(text.to_string());
                 }

@@ -29,7 +29,8 @@
 //! The `kramdown` feature, also off by default, understands a few habits of
 //! Markdown written for kramdown, Jekyll's default: attribute lists like
 //! `{:.no_toc}` are dropped, `{:toc}` lists become tables of contents, and
-//! Markdown inside `markdown="1"` elements is rendered as Markdown.
+//! Markdown inside `markdown="1"` elements is rendered as Markdown. See
+//! [`kramdown`].
 //!
 //! The `native-links` feature, off by default, writes each link's URL into
 //! the cells [`MarkdownView`] draws, so backends that support it show links
@@ -46,7 +47,7 @@ use unicode_width::UnicodeWidthChar;
 #[cfg(feature = "front-matter")]
 pub mod front_matter;
 #[cfg(feature = "kramdown")]
-mod kramdown;
+pub mod kramdown;
 mod render;
 #[cfg(feature = "syntax")]
 mod syntax;

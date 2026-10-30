@@ -1,46 +1,116 @@
 //! Small allowances for Markdown written for kramdown, Jekyll's default.
+//!
+//! [`Kramdown::to_commonmark`] rewrites what a CommonMark parser would read
+//! differently, and [`AttributeList`] reads the `{:.class}` lists it leaves
+//! in the text. They're what this crate renders kramdown with, and they're
+//! public for anyone turning the same Markdown into something else, like
+//! HTML.
+//!
+//! ```
+//! use ratmark::kramdown::{AttributeList, Kramdown};
+//!
+//! let markdown = Kramdown::to_commonmark("* TOC\n{:toc}\n\n## Hi there\n");
+//! assert_eq!(markdown, "* [Hi there](#hi-there)\n\n## Hi there\n");
+//!
+//! let (list, rest) = AttributeList::split("{:.new #a}: rest");
+//! assert_eq!(list.classes, ["new"]);
+//! assert_eq!(list.id, Some("a"));
+//! assert_eq!(rest, ": rest");
+//! ```
 
 use std::borrow::Cow;
 
-/// Rewrites what CommonMark would read differently from kramdown.
-pub(crate) fn preprocess(markdown: &str) -> Cow<'_, str> {
-    let markdown = Toc::expand(markdown);
-    match MarkdownElements::separate(&markdown) {
-        Cow::Owned(out) => Cow::Owned(out),
-        Cow::Borrowed(_) => markdown,
-    }
-}
+/// Markdown written for kramdown.
+pub struct Kramdown;
 
-/// Drops kramdown attribute lists, like `{:.no_toc}`, from text. They come
-/// alone on a line after a block, or right after a span like `` `code` ``,
-/// which puts them at the start of the following text.
-pub(crate) fn strip_attribute_lists(text: &str) -> &str {
-    let mut text = text;
-    while let Some(rest) = text.strip_prefix("{:") {
-        match rest.find('}') {
-            Some(end) => text = &rest[end + 1..],
-            None => break,
+impl Kramdown {
+    /// Rewrites what CommonMark would read differently from kramdown.
+    /// `{:toc}` lists become lists of links to the headings, and Markdown
+    /// inside `markdown="1"` elements gets the blank lines CommonMark needs
+    /// to read it as Markdown. Attribute lists are left in place.
+    pub fn to_commonmark(markdown: &str) -> Cow<'_, str> {
+        let markdown = Toc::expand(markdown);
+        match MarkdownElements::separate(&markdown) {
+            Cow::Owned(out) => Cow::Owned(out),
+            Cow::Borrowed(_) => markdown,
         }
     }
-    text
+
+    /// The id kramdown gives a heading with GFM input, Jekyll's default: the
+    /// text in lowercase, keeping only word characters, spaces and dashes,
+    /// with spaces made dashes. See [`HeaderIds`] for ids unique to a
+    /// document.
+    pub fn header_id(text: &str) -> String {
+        let id: String = text
+            .chars()
+            .filter(|c| c.is_alphanumeric() || matches!(c, '_' | ' ' | '-'))
+            .flat_map(char::to_lowercase)
+            .map(|c| if c == ' ' { '-' } else { c })
+            .collect();
+        if id.is_empty() {
+            "section".to_owned()
+        } else {
+            id
+        }
+    }
 }
 
-/// The classes in the kramdown attribute lists at the start of `text`, like
-/// `new` and `old` from `{:.new}{: .old #id}`, which belong to the span just
-/// before it.
-pub(crate) fn span_classes(text: &str) -> Vec<&str> {
-    let mut classes = Vec::new();
-    let mut text = text;
-    while let Some(rest) = text.strip_prefix("{:") {
-        let Some(end) = rest.find('}') else { break };
-        for word in rest[..end].split_whitespace() {
-            if word.starts_with('.') {
-                classes.extend(word.split('.').filter(|c| !c.is_empty()));
+/// Hands out heading ids the way kramdown does, a number added to any id
+/// already taken in the document, like `intro-1`.
+#[derive(Debug, Default)]
+pub struct HeaderIds {
+    taken: Vec<String>,
+}
+
+impl HeaderIds {
+    /// The id for the next heading, with text `text`.
+    pub fn next(&mut self, text: &str) -> String {
+        let base = Kramdown::header_id(text);
+        let mut id = base.clone();
+        let mut n = 0;
+        while self.taken.contains(&id) {
+            n += 1;
+            id = format!("{base}-{n}");
+        }
+        self.taken.push(id.clone());
+        id
+    }
+}
+
+/// The classes and id from kramdown attribute lists, like `{: .new #intro}`.
+/// They come alone on a line after a block, or right after a span like
+/// `` `code` ``, which puts them at the start of the following text.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct AttributeList<'a> {
+    pub id: Option<&'a str>,
+    pub classes: Vec<&'a str>,
+}
+
+impl<'a> AttributeList<'a> {
+    /// Splits the attribute lists at the start of `text` off the rest, read
+    /// together as one. Other attributes, like `k="v"`, are skipped.
+    pub fn split(text: &'a str) -> (Self, &'a str) {
+        let mut list = Self::default();
+        let mut text = text;
+        while let Some(rest) = text.strip_prefix("{:") {
+            let Some(end) = rest.find('}') else { break };
+            for word in rest[..end].split_whitespace() {
+                if let Some(id) = word.strip_prefix('#') {
+                    list.id = Some(id);
+                } else if word.starts_with('.') {
+                    list.classes
+                        .extend(word.split('.').filter(|c| !c.is_empty()));
+                }
             }
+            text = &rest[end + 1..];
         }
-        text = &rest[end + 1..];
+        (list, text)
     }
-    classes
+
+    /// Whether there's nothing in the list.
+    pub fn is_empty(&self) -> bool {
+        self.id.is_none() && self.classes.is_empty()
+    }
 }
 
 /// kramdown replaces a one item list followed by `{:toc}` with a list of
@@ -85,6 +155,7 @@ impl<'a> Toc<'a> {
     /// The document's headings, outside of code, with unique ids.
     fn collect(lines: &[&'a str]) -> Self {
         let mut entries: Vec<Entry> = Vec::new();
+        let mut ids = HeaderIds::default();
         let mut fence = Fence::default();
         for (i, line) in lines.iter().enumerate() {
             if fence.contains(line) {
@@ -97,13 +168,7 @@ impl<'a> Toc<'a> {
             if next.starts_with("{:") && next.contains(".no_toc") {
                 continue;
             }
-            let base = Entry::header_id(text);
-            let mut id = base.clone();
-            let mut n = 0;
-            while entries.iter().any(|e| e.id == id) {
-                n += 1;
-                id = format!("{base}-{n}");
-            }
+            let id = ids.next(text);
             entries.push(Entry { level, text, id });
         }
         Self { entries }
@@ -159,23 +224,6 @@ impl Entry<'_> {
         }
         let text = text.trim_end_matches('#').trim_end();
         (!text.is_empty()).then_some((level, text))
-    }
-
-    /// The id kramdown gives a heading with GFM input, Jekyll's default: the
-    /// text in lowercase, keeping only word characters, spaces and dashes,
-    /// with spaces made dashes.
-    fn header_id(text: &str) -> String {
-        let id: String = text
-            .chars()
-            .filter(|c| c.is_alphanumeric() || matches!(c, '_' | ' ' | '-'))
-            .flat_map(char::to_lowercase)
-            .map(|c| if c == ' ' { '-' } else { c })
-            .collect();
-        if id.is_empty() {
-            "section".to_owned()
-        } else {
-            id
-        }
     }
 }
 
@@ -305,7 +353,7 @@ mod tests {
     fn separates_markdown_from_tags() {
         let src = "<div markdown=\"1\">\n```rust\n</div>\n```\n<div>\n</div>\n</div>\nafter\n";
         assert_eq!(
-            preprocess(src),
+            Kramdown::to_commonmark(src),
             "<div markdown=\"1\">\n\n```rust\n</div>\n```\n<div>\n</div>\n\n</div>\nafter\n"
         );
     }
@@ -318,33 +366,37 @@ mod tests {
             "# Title\n{:.no_toc}\n\n* [One `a`](#one-a)\n  * [Two](#two)\n* [One `a`](#one-a-1)\n\n## One `a`\n\n```\n# not\n```\n\n### Two\n\n## One `a`\n"
         );
         assert_eq!(
-            Entry::header_id("4. Relating to Recent Posts"),
+            Kramdown::header_id("4. Relating to Recent Posts"),
             "4-relating-to-recent-posts"
         );
         assert!(matches!(Toc::expand("* TOC\n"), Cow::Borrowed(_)));
     }
 
     #[test]
-    fn span_classes_are_read() {
-        assert_eq!(
-            span_classes("{:.new}{: .old.x #id k=\"v\"}: rest"),
-            ["new", "old", "x"]
-        );
-        assert!(span_classes("text {:.a}").is_empty());
+    fn attribute_lists() {
+        let (list, rest) = AttributeList::split("{:.new}{: .old.x #id k=\"v\"}: rest");
+        assert_eq!(list.classes, ["new", "old", "x"]);
+        assert_eq!(list.id, Some("id"));
+        assert_eq!(rest, ": rest");
+        assert_eq!(AttributeList::split("{:.no_toc}").1, "");
+        let (list, rest) = AttributeList::split("text {:.a}");
+        assert!(list.is_empty());
+        assert_eq!(rest, "text {:.a}");
+        assert_eq!(AttributeList::split("{:unclosed").1, "{:unclosed");
     }
 
     #[test]
-    fn attribute_lists() {
-        assert_eq!(strip_attribute_lists("{:.no_toc}"), "");
-        assert_eq!(strip_attribute_lists("{:.a}{: #b}: rest"), ": rest");
-        assert_eq!(strip_attribute_lists("text {:.a}"), "text {:.a}");
-        assert_eq!(strip_attribute_lists("{:unclosed"), "{:unclosed");
+    fn header_ids_are_unique() {
+        let mut ids = HeaderIds::default();
+        assert_eq!(ids.next("One"), "one");
+        assert_eq!(ids.next("One"), "one-1");
+        assert_eq!(ids.next("one!"), "one-2");
     }
 
     #[test]
     fn leaves_other_documents_alone() {
         assert!(matches!(
-            preprocess("<div>\n*hi*\n</div>"),
+            Kramdown::to_commonmark("<div>\n*hi*\n</div>"),
             Cow::Borrowed(_)
         ));
     }

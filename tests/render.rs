@@ -287,7 +287,10 @@ fn classes_color_code_blocks() {
     let rendered = Rendered::render(markdown, 20, &class_theme());
     assert_eq!(background(&rendered, "fn x"), Some(Color::Red));
     assert_eq!(background(&rendered, "fn y"), Some(Color::Blue));
-    assert_eq!(background(&rendered, "fn z"), Theme::default().code_block.bg);
+    assert_eq!(
+        background(&rendered, "fn z"),
+        Theme::default().code_block.bg
+    );
 }
 
 #[cfg(feature = "html")]
