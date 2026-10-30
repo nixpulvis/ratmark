@@ -25,6 +25,24 @@ pub(crate) fn strip_attribute_lists(text: &str) -> &str {
     text
 }
 
+/// The classes in the kramdown attribute lists at the start of `text`, like
+/// `new` and `old` from `{:.new}{: .old #id}`, which belong to the span just
+/// before it.
+pub(crate) fn span_classes(text: &str) -> Vec<&str> {
+    let mut classes = Vec::new();
+    let mut text = text;
+    while let Some(rest) = text.strip_prefix("{:") {
+        let Some(end) = rest.find('}') else { break };
+        for word in rest[..end].split_whitespace() {
+            if word.starts_with('.') {
+                classes.extend(word.split('.').filter(|c| !c.is_empty()));
+            }
+        }
+        text = &rest[end + 1..];
+    }
+    classes
+}
+
 /// kramdown replaces a one item list followed by `{:toc}` with a list of
 /// links to the document's headings, leaving out any marked `{:.no_toc}`.
 /// This writes that list out, so it renders as links.
@@ -304,6 +322,15 @@ mod tests {
             "4-relating-to-recent-posts"
         );
         assert!(matches!(Toc::expand("* TOC\n"), Cow::Borrowed(_)));
+    }
+
+    #[test]
+    fn span_classes_are_read() {
+        assert_eq!(
+            span_classes("{:.new}{: .old.x #id k=\"v\"}: rest"),
+            ["new", "old", "x"]
+        );
+        assert!(span_classes("text {:.a}").is_empty());
     }
 
     #[test]

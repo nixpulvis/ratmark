@@ -2,7 +2,7 @@
 
 use std::sync::OnceLock;
 
-use ratatui_core::style::Color;
+use ratatui_core::style::{Color, Style};
 use syntect::easy::HighlightLines;
 use syntect::highlighting::ThemeSet;
 use syntect::parsing::SyntaxSet;
@@ -22,9 +22,14 @@ fn themes() -> &'static ThemeSet {
 }
 
 /// Colors `code` as the language named `lang`, one entry per line, with the
-/// theme's syntax theme. Returns `None` when there's no syntax theme or the
-/// language or syntax theme is unknown.
-pub(crate) fn highlight(code: &str, lang: &str, theme: &Theme) -> Option<Vec<Vec<Piece>>> {
+/// theme's syntax theme over `base`. Returns `None` when there's no syntax
+/// theme or the language or syntax theme is unknown.
+pub(crate) fn highlight(
+    code: &str,
+    lang: &str,
+    theme: &Theme,
+    base: Style,
+) -> Option<Vec<Vec<Piece>>> {
     let syntax = syntaxes().find_syntax_by_token(lang)?;
     let colors = themes().themes.get(theme.syntax?)?;
     let mut highlighter = HighlightLines::new(syntax, colors);
@@ -38,7 +43,7 @@ pub(crate) fn highlight(code: &str, lang: &str, theme: &Theme) -> Option<Vec<Vec
                     let c = style.foreground;
                     Piece::new(
                         text.trim_end_matches('\n'),
-                        theme.code_block.fg(Color::Rgb(c.r, c.g, c.b)),
+                        base.fg(Color::Rgb(c.r, c.g, c.b)),
                     )
                 })
                 .filter(|piece| !piece.text.is_empty())

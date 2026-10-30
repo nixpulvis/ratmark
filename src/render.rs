@@ -55,10 +55,28 @@ impl<'t> Renderer<'t> {
         let markdown = crate::kramdown::preprocess(markdown);
         #[cfg(not(feature = "kramdown"))]
         let markdown = std::borrow::Cow::Borrowed(markdown);
-        for event in Parser::new_ext(&markdown, options()) {
-            match self.capture.take() {
-                Some(capture) => self.captured(capture, event),
-                None => self.event(event),
+        // Peekable for kramdown's classes after inline code.
+        let mut events = Parser::new_ext(&markdown, options()).peekable();
+        #[allow(clippy::while_let_on_iterator)]
+        while let Some(event) = events.next() {
+            match (self.capture.take(), event) {
+                (Some(capture), event) => self.captured(capture, event),
+                // A kramdown attribute list right after inline code gives it
+                // classes.
+                #[cfg(feature = "kramdown")]
+                (None, Event::Code(code)) => {
+                    let classes = match events.peek() {
+                        Some(Event::Text(text)) => crate::kramdown::span_classes(text),
+                        _ => Vec::new(),
+                    };
+                    let style = self.code_style();
+                    let style = self
+                        .theme
+                        .class_style(classes.iter().copied())
+                        .map_or(style, |class| style.patch(class));
+                    self.piece(code.into_string(), style);
+                }
+                (None, event) => self.event(event),
             }
         }
         let (lines, links) = self.writer.finish();
@@ -123,7 +141,7 @@ impl<'t> Renderer<'t> {
                 }
             }
             Event::Code(code) => {
-                let style = self.style().patch(self.theme.code);
+                let style = self.code_style();
                 self.piece(code.into_string(), style);
             }
             Event::InlineMath(math) | Event::DisplayMath(math) => {
@@ -336,10 +354,10 @@ impl<'t> Renderer<'t> {
     #[cfg_attr(not(feature = "syntax"), allow(unused_variables))]
     fn code_block(&mut self, lang: &str, code: &str) {
         let code = code.replace('\t', "    ");
-        let base = self.theme.code_block;
+        let base = self.code_block_style();
         let plain = || code.lines().map(|l| vec![Piece::new(l, base)]).collect();
         #[cfg(feature = "syntax")]
-        let lines = crate::syntax::highlight(&code, lang, self.theme).unwrap_or_else(plain);
+        let lines = crate::syntax::highlight(&code, lang, self.theme, base).unwrap_or_else(plain);
         #[cfg(not(feature = "syntax"))]
         let lines: Vec<Vec<Piece>> = plain();
         let code: Vec<Line<'static>> = lines
@@ -408,6 +426,23 @@ impl<'t> Renderer<'t> {
 
     fn style(&self) -> Style {
         self.open.last().map_or(self.theme.text, |o| o.style)
+    }
+
+    fn code_style(&self) -> Style {
+        self.style().patch(self.theme.code)
+    }
+
+    /// The style of a code block here, with the background of the classes
+    /// it's inside, when they have one.
+    fn code_block_style(&self) -> Style {
+        #[cfg(feature = "html")]
+        if let Some(background) = self.open.iter().rev().find_map(|o| match o.kind {
+            Kind::Class { background, .. } => background,
+            _ => None,
+        }) {
+            return self.theme.code_block.bg(background);
+        }
+        self.theme.code_block
     }
 
     fn link(&self) -> Option<usize> {
@@ -503,6 +538,13 @@ enum Kind {
     Html(String),
     #[cfg(feature = "html")]
     HtmlItem,
+    /// An HTML element with classes the theme styles, by its tag name, and
+    /// the background its classes give it.
+    #[cfg(feature = "html")]
+    Class {
+        name: String,
+        background: Option<ratatui_core::style::Color>,
+    },
 }
 
 /// Content read whole before it's drawn, swallowing the events inside it.

@@ -30,6 +30,12 @@ impl Token {
     }
 }
 
+/// Elements that never have content, or a closing tag.
+const VOID: &[&str] = &[
+    "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "track",
+    "wbr",
+];
+
 /// Elements whose content is never shown as text.
 const SKIPPED: &[&str] = &["script", "style", "svg", "template", "head"];
 
@@ -121,6 +127,7 @@ impl Renderer<'_> {
                         if let Some(Capture::Pre(pre)) = self.capture.take() {
                             self.pre(&pre);
                         }
+                        self.close_class(name);
                     }
                     _ => {}
                 }
@@ -128,91 +135,124 @@ impl Renderer<'_> {
             }
             match &token {
                 Token::Text(text) => self.text(text.clone()),
-                Token::Open { name, .. } => match name.as_str() {
-                    "a" => {
-                        if let Some(href) = token.attr("href") {
-                            self.open_link(Kind::Html(name.clone()), href);
-                        }
-                    }
-                    "br" => self.writer.line_break(),
-                    "pre" => {
-                        self.writer.flush();
-                        self.capture = Some(Capture::Pre(String::new()));
-                    }
-                    "li" => {
-                        // Like a Markdown item, wrapped lines hang under
-                        // the text, not the bullet.
-                        self.writer.flush();
-                        let bullet = Piece::new(BULLETS[0], self.theme.list_marker);
-                        let prefix = Prefix::hanging(bullet, self.theme.text);
-                        self.open_prefixed(Kind::HtmlItem, prefix, Style::new());
-                    }
-                    "p" | "div" | "ul" | "ol" | "tr" | "table" | "blockquote" | "section"
-                    | "article" | "header" | "footer" | "figure" | "dl" | "dt" | "dd" => {
-                        self.writer.hard_break()
-                    }
-                    "hr" => {
-                        self.writer.hard_break();
-                        self.text("───");
-                        self.writer.line_break();
-                    }
-                    "h1" | "h2" | "h3" | "h4" | "h5" | "h6" => {
-                        // A blank line before a heading, as in Markdown.
-                        self.writer.hard_break();
-                        if self.writer.inline().is_empty() {
-                            self.writer.set_gap(true);
-                        } else {
-                            self.writer.line_break();
-                        }
-                        let level = usize::from(name.as_bytes()[1] - b'1');
-                        self.heading_marker(level);
-                        self.open(Kind::Html(name.clone()), self.theme.headings[level]);
-                    }
-                    "strong" | "b" => self.open(Kind::Html(name.clone()), self.theme.strong),
-                    "em" | "i" | "cite" => self.open(Kind::Html(name.clone()), self.theme.emphasis),
-                    "code" | "kbd" | "tt" | "samp" => {
-                        self.open(Kind::Html(name.clone()), self.theme.code)
-                    }
-                    "s" | "del" | "strike" => {
-                        self.open(Kind::Html(name.clone()), self.theme.strikethrough)
-                    }
-                    "small" | "sub" | "sup" => {
-                        self.open(Kind::Html(name.clone()), self.theme.small)
-                    }
-                    "img" => {
-                        let src = token.attr("src").unwrap_or("");
-                        let alt = token.attr("alt").unwrap_or("");
-                        self.image(src, alt);
-                    }
-                    "svg" => {
-                        if let Some(label) = token.attr("aria-label") {
-                            let style = self.style().patch(self.theme.image);
-                            self.piece(format!("[figure: {label}]"), style);
-                        }
-                    }
-                    _ => {}
-                },
-                Token::Close(name) => match name.as_str() {
-                    "li" if self.is_open(|k| *k == Kind::HtmlItem) => {
-                        self.writer.flush();
-                        self.close(|k| *k == Kind::HtmlItem);
-                    }
-                    "p" | "div" | "li" | "ul" | "ol" | "tr" | "table" | "blockquote"
-                    | "section" | "article" | "header" | "footer" | "figure" | "dl" | "dt"
-                    | "dd" => self.writer.hard_break(),
-                    "td" | "th" => self.text(" "),
-                    _ => {
-                        // Only when it's the innermost, as HTML is often
-                        // left unclosed.
-                        if matches!(self.open.last(), Some(o) if o.kind == Kind::Html(name.clone()))
-                        {
-                            self.open.pop();
-                        }
-                        if name.len() == 2 && name.starts_with('h') {
-                            self.writer.hard_break();
-                        }
-                    }
-                },
+                Token::Open { name, .. } => {
+                    self.open_class(name, token.attr("class"));
+                    self.open_tag(&token, name);
+                }
+                Token::Close(name) => {
+                    self.close_tag(name);
+                    self.close_class(name);
+                }
+            }
+        }
+    }
+
+    /// Opens a [`Kind::Class`] for an element with classes the theme styles,
+    /// or for one with the same name inside a styled element, so the closing
+    /// tags pair up with the right one.
+    fn open_class(&mut self, name: &str, classes: Option<&str>) {
+        if VOID.contains(&name) {
+            return;
+        }
+        let style = classes.and_then(|c| self.theme.class_style(c.split_whitespace()));
+        let inside = self.is_open(|k| matches!(k, Kind::Class { name: n, .. } if n == name));
+        if style.is_some() || inside {
+            let style = style.unwrap_or_default();
+            let kind = Kind::Class {
+                name: name.to_owned(),
+                background: style.bg,
+            };
+            self.open(kind, style);
+        }
+    }
+
+    fn close_class(&mut self, name: &str) {
+        self.close(|k| matches!(k, Kind::Class { name: n, .. } if n == name));
+    }
+
+    fn open_tag(&mut self, token: &Token, name: &str) {
+        match name {
+            "a" => {
+                if let Some(href) = token.attr("href") {
+                    self.open_link(Kind::Html(name.to_owned()), href);
+                }
+            }
+            "br" => self.writer.line_break(),
+            "pre" => {
+                self.writer.flush();
+                self.capture = Some(Capture::Pre(String::new()));
+            }
+            "li" => {
+                // Like a Markdown item, wrapped lines hang under
+                // the text, not the bullet.
+                self.writer.flush();
+                let bullet = Piece::new(BULLETS[0], self.theme.list_marker);
+                let prefix = Prefix::hanging(bullet, self.theme.text);
+                self.open_prefixed(Kind::HtmlItem, prefix, Style::new());
+            }
+            "p" | "div" | "ul" | "ol" | "tr" | "table" | "blockquote" | "section" | "article"
+            | "header" | "footer" | "figure" | "dl" | "dt" | "dd" => self.writer.hard_break(),
+            "hr" => {
+                self.writer.hard_break();
+                self.text("───");
+                self.writer.line_break();
+            }
+            "h1" | "h2" | "h3" | "h4" | "h5" | "h6" => {
+                // A blank line before a heading, as in Markdown.
+                self.writer.hard_break();
+                if self.writer.inline().is_empty() {
+                    self.writer.set_gap(true);
+                } else {
+                    self.writer.line_break();
+                }
+                let level = usize::from(name.as_bytes()[1] - b'1');
+                self.heading_marker(level);
+                self.open(Kind::Html(name.to_owned()), self.theme.headings[level]);
+            }
+            "strong" | "b" => self.open(Kind::Html(name.to_owned()), self.theme.strong),
+            "em" | "i" | "cite" => self.open(Kind::Html(name.to_owned()), self.theme.emphasis),
+            "code" | "kbd" | "tt" | "samp" => {
+                self.open(Kind::Html(name.to_owned()), self.theme.code)
+            }
+            "s" | "del" | "strike" => {
+                self.open(Kind::Html(name.to_owned()), self.theme.strikethrough)
+            }
+            "small" | "sub" | "sup" => self.open(Kind::Html(name.to_owned()), self.theme.small),
+            "img" => {
+                let src = token.attr("src").unwrap_or("");
+                let alt = token.attr("alt").unwrap_or("");
+                self.image(src, alt);
+            }
+            "svg" => {
+                if let Some(label) = token.attr("aria-label") {
+                    let style = self.style().patch(self.theme.image);
+                    self.piece(format!("[figure: {label}]"), style);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn close_tag(&mut self, name: &str) {
+        match name {
+            "li" if self.is_open(|k| *k == Kind::HtmlItem) => {
+                self.writer.flush();
+                self.close(|k| *k == Kind::HtmlItem);
+            }
+            "p" | "div" | "li" | "ul" | "ol" | "tr" | "table" | "blockquote" | "section"
+            | "article" | "header" | "footer" | "figure" | "dl" | "dt" | "dd" => {
+                self.writer.hard_break()
+            }
+            "td" | "th" => self.text(" "),
+            _ => {
+                // Only when it's the innermost, as HTML is often
+                // left unclosed.
+                if matches!(self.open.last(), Some(o) if o.kind == Kind::Html(name.to_owned())) {
+                    self.open.pop();
+                }
+                if name.len() == 2 && name.starts_with('h') {
+                    self.writer.hard_break();
+                }
             }
         }
     }

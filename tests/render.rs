@@ -255,3 +255,57 @@ fn html_pre_keeps_its_lines() {
         [" $ fortune", " a  b", "", " $ cd x", "", "after"]
     );
 }
+
+/// The background behind `text`, wherever it's drawn first.
+#[cfg(any(feature = "html", feature = "kramdown"))]
+fn background(rendered: &Rendered, text: &str) -> Option<ratatui_core::style::Color> {
+    rendered
+        .lines
+        .iter()
+        .flat_map(|l| l.spans.iter())
+        .find(|s| s.content.contains(text))
+        .and_then(|s| s.style.bg)
+}
+
+#[cfg(any(feature = "html", feature = "kramdown"))]
+fn class_theme() -> Theme {
+    use ratatui_core::style::{Color, Style};
+    Theme {
+        classes: vec![
+            (".hl".into(), Style::new().bg(Color::Red)),
+            (".hl.other".into(), Style::new().bg(Color::Blue)),
+        ],
+        ..Theme::default()
+    }
+}
+
+#[cfg(all(feature = "html", feature = "kramdown"))]
+#[test]
+fn classes_color_code_blocks() {
+    use ratatui_core::style::Color;
+    let markdown = "<div class=\"hl\" markdown=\"1\">\n```\nfn x\n```\n</div>\n\n<div class=\"hl other\" markdown=\"1\">\n```\nfn y\n```\n</div>\n\n```\nfn z\n```\n";
+    let rendered = Rendered::render(markdown, 20, &class_theme());
+    assert_eq!(background(&rendered, "fn x"), Some(Color::Red));
+    assert_eq!(background(&rendered, "fn y"), Some(Color::Blue));
+    assert_eq!(background(&rendered, "fn z"), Theme::default().code_block.bg);
+}
+
+#[cfg(feature = "html")]
+#[test]
+fn classes_last_until_their_element_closes() {
+    use ratatui_core::style::Color;
+    let markdown = "<div class=\"hl\"><div>inner</div> still</div> after";
+    let rendered = Rendered::render(markdown, 40, &class_theme());
+    assert_eq!(background(&rendered, "inner"), Some(Color::Red));
+    assert_eq!(background(&rendered, "still"), Some(Color::Red));
+    assert_eq!(background(&rendered, "after"), Theme::default().text.bg);
+}
+
+#[cfg(feature = "kramdown")]
+#[test]
+fn kramdown_classes_style_inline_code() {
+    use ratatui_core::style::Color;
+    let rendered = Rendered::render("`x`{:.hl} and `y`", 40, &class_theme());
+    assert_eq!(background(&rendered, "x"), Some(Color::Red));
+    assert_ne!(background(&rendered, "y"), Some(Color::Red));
+}

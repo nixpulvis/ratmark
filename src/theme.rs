@@ -36,6 +36,13 @@ pub struct Theme {
     /// The syntect theme used to color code blocks, when the `syntax`
     /// feature is on. Only its foreground colors are used.
     pub syntax: Option<&'static str>,
+    /// Styles for elements with these classes, written like CSS class
+    /// selectors, `.note` or `.note.warning`, and patched in order over
+    /// everything inside a matching element. A code block inside takes its
+    /// background. Classes come from HTML, with the `html` feature, and from
+    /// a kramdown attribute list right after inline code, like
+    /// `` `x`{:.new} ``, with the `kramdown` feature.
+    pub classes: Vec<(String, Style)>,
 }
 
 impl Default for Theme {
@@ -45,6 +52,24 @@ impl Default for Theme {
 }
 
 impl Theme {
+    /// The style for an element with `classes`, from [`Theme::classes`],
+    /// or `None` when no selector matches.
+    #[cfg(any(feature = "html", feature = "kramdown"))]
+    pub(crate) fn class_style<'c>(
+        &self,
+        classes: impl IntoIterator<Item = &'c str> + Clone,
+    ) -> Option<Style> {
+        let has = |class: &str| classes.clone().into_iter().any(|c| c == class);
+        self.classes
+            .iter()
+            .filter(|(selector, _)| {
+                let mut wanted = selector.split('.').filter(|c| !c.is_empty()).peekable();
+                wanted.peek().is_some() && wanted.all(has)
+            })
+            .map(|(_, style)| *style)
+            .reduce(|style, more| style.patch(more))
+    }
+
     /// Gruvbox dark, after the look of Tyler Bloom's blog, The Avid
     /// Rustacean, which this crate's design comes from.
     pub fn gruvbox() -> Self {
@@ -91,6 +116,7 @@ impl Theme {
             table_row_rules: true,
             small: Style::new().fg(GRAY),
             syntax: Some("base16-eighties.dark"),
+            classes: Vec::new(),
         }
     }
 
@@ -128,6 +154,7 @@ impl Theme {
             table_row_rules: true,
             small: dim,
             syntax: None,
+            classes: Vec::new(),
         }
     }
 }

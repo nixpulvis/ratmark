@@ -51,6 +51,10 @@ Markdown inside `markdown="1"` elements is rendered as Markdown.
 Two themes come with it. `Theme::gruvbox()` is the default, and
 `Theme::plain()` uses no colors so the terminal's own palette shows through.
 Every style is a public field, so making your own is a struct literal.
+`Theme::classes` styles elements by class, written like CSS selectors. It
+reads classes from HTML, like a `<div class="note">` around a code block,
+which then takes the class's background, and from kramdown attribute lists
+after inline code, like `` `x`{:.note} ``.
 
 ## Credit
 
