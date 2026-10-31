@@ -75,6 +75,19 @@ RATMARK_CORPUS=~/site/_site cargo test --features kramdown corpus
 `cargo run --example dump -- FILE WIDTH` prints a file as rendered, without
 colors, which is handy for eyeballing layout.
 
+## Examples
+
+Each feature has an example that prints a short document, drawn by
+`MarkdownView`, to the terminal in color:
+
+```sh
+cargo run --example syntax --features syntax
+cargo run --example front_matter --features front-matter
+cargo run --example kramdown --features kramdown
+cargo run --example html --features html
+cargo run --example native_links --features native-links
+```
+
 ## License
 
 Licensed under either of [Apache License, Version 2.0](LICENSE-APACHE) or

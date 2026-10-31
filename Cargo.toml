@@ -40,6 +40,26 @@ url = { version = "2.5", optional = true }
 [dev-dependencies]
 unicode-width = "0.2"
 
+[[example]]
+name = "syntax"
+required-features = ["syntax"]
+
+[[example]]
+name = "front_matter"
+required-features = ["front-matter"]
+
+[[example]]
+name = "kramdown"
+required-features = ["kramdown"]
+
+[[example]]
+name = "html"
+required-features = ["html"]
+
+[[example]]
+name = "native_links"
+required-features = ["native-links"]
+
 # Ratatui's cell extensions, proposed in ratatui/ratatui#2854.
 [patch.crates-io]
 ratatui-core = { git = "https://github.com/WeirdBrains/ratatui", branch = "multi-char-cells" }
