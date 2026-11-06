@@ -58,6 +58,10 @@
 //! lists and math are supported. Code too wide for the page scrolls
 //! sideways rather than wrapping.
 //!
+//! [`gesture`] turns wheel, trackpad and touch movement in pixels, as a
+//! browser reports it, into scrolling a line, or shifting code a column, at
+//! a time, with flicks that glide.
+//!
 #![cfg_attr(
     any(
         feature = "links",
@@ -65,6 +69,7 @@
         feature = "html",
         feature = "kramdown",
         feature = "_front-matter",
+        feature = "web",
     ),
     doc = "# Features"
 )]
@@ -127,6 +132,13 @@
         "  document before rendering the rest, and deserializing it with serde.",
     )
 )]
+#![cfg_attr(
+    feature = "web",
+    doc = concat!(
+        "- The `web` feature adds [`gesture::web::listen`], which follows a browser's\n",
+        "  wheel and touch events over a view drawn in an element.",
+    )
+)]
 //!
 //! [Ratatui]: https://ratatui.rs
 //! [`StatefulWidget`]: ratatui_core::widgets::StatefulWidget
@@ -146,6 +158,7 @@ mod writer;
 
 #[cfg(feature = "_front-matter")]
 pub mod front_matter;
+pub mod gesture;
 #[cfg(feature = "syntax")]
 mod syntax;
 

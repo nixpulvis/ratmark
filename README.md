@@ -40,6 +40,23 @@ let clicked = state.link_at(5, 2).map(|link| link.url.as_str()); // Some("https:
 `MarkdownView` wraps the document to the width it's given, rewrapping when the
 width changes, and draws it scrolled with the focused link highlighted.
 
+## Scrolling
+
+In the browser, scrolling comes in pixels, from a wheel, a trackpad or a
+finger, rather than whole lines. `gesture::Gestures` adds those up into a
+line, or a column of wide code, at a time, keeps each gesture going one way,
+and lets a flick glide to a stop. `Step::apply` carries each move out on a
+`MarkdownState`. The [`web`](#web) feature adds `gesture::web::listen`, which
+follows the wheel and touch events over the element a view is drawn in:
+
+```rust
+let (width, height) = terminal.backend().cell_size_css_px();
+let cell = (f64::from(width), f64::from(height));
+ratmark::gesture::web::listen(&screen, cell, move |step| {
+    step.apply(&mut state.borrow_mut())
+})?;
+```
+
 ## Examples
 
 `tui` is a full-screen reader, `MarkdownState` driving a small app that scrolls,
@@ -53,8 +70,8 @@ cargo run --example tui --features syntax -- README.md
 
 ## Features
 
-All features are off by default. Each has an example that prints a short
-document, drawn by `MarkdownView` with Ratatui's crossterm backend, to the
+All features are off by default. Each, but `web`, has an example that prints a
+short document, drawn by `MarkdownView` with Ratatui's crossterm backend, to the
 terminal in color. They need an interactive terminal, not a pipe.
 
 ### `syntax`
@@ -112,6 +129,12 @@ cell extensions, which aren't released yet ([ratatui#2854]), and
 ```sh
 cargo run --example links --features links
 ```
+
+### `web`
+
+Follows a browser's wheel and touch events over the element a view is drawn in,
+like [Ratzilla]'s, with `gesture::web::listen`, as [Scrolling](#scrolling)
+shows. It needs `wasm32-unknown-unknown`, and a browser to try it in.
 
 ## Testing
 

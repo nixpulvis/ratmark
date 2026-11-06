@@ -38,6 +38,9 @@ links = ["ratatui-core/cell-extensions", "dep:url"]
 # Show the text, links and simple formatting of HTML in the Markdown, read
 # with html5gum. Without it, HTML is left out.
 html = ["dep:html5gum"]
+# Scroll the view with the wheel, a trackpad or a finger in the browser,
+# following the events with web-sys, in `gesture::web`.
+web = ["dep:wasm-bindgen", "dep:web-sys"]
 
 [dependencies]
 pulldown-cmark = { version = "0.13", default-features = false }
@@ -51,6 +54,8 @@ url = { version = "2.5", optional = true }
 serde = { version = "1", optional = true }
 serde-saphyr = { version = "2", optional = true, default-features = false, features = ["deserialize"] }
 toml = { version = "1.1", optional = true, default-features = false, features = ["std", "parse", "serde"] }
+wasm-bindgen = { version = "0.2", optional = true }
+web-sys = { version = "0.3", optional = true, features = ["AddEventListenerOptions", "DomRect", "Element", "EventTarget", "Touch", "TouchEvent", "TouchList", "WheelEvent", "Window"] }
 
 [dev-dependencies]
 # Draws the examples. Its cell extensions write native links as OSC 8.
