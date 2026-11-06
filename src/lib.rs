@@ -1,8 +1,7 @@
 //! Render Markdown as a [Ratatui] [`StatefulWidget`], or into Ratatui text.
 //!
-//! [`MarkdownView`] is a widget that shows a document, scrolled, with links
-//! you can select with the keyboard or the mouse. Its [`MarkdownState`]
-//! holds the document and lays it out again whenever the width changes.
+//! Draw a [`MarkdownView`] in any Ratatui [`Terminal`], then drive its state
+//! from input:
 //!
 //! ```
 //! use ratmark::{MarkdownState, MarkdownView, Theme};
@@ -10,23 +9,29 @@
 //! # let mut terminal = ratatui_core::terminal::Terminal::new(backend)?;
 //!
 //! let theme = Theme::default();
-//! let mut state = MarkdownState::new("# Hi\n\nSee [the docs](https://docs.rs).");
+//! let mut state = MarkdownState::new("# Hello\n\nRead [the docs](https://docs.rs/ratmark).");
 //!
+//! // `terminal` is your app's `ratatui_core::terminal::Terminal`, like
+//! // `Terminal::new(CrosstermBackend::new(io::stdout()))?` from ratatui-crossterm.
 //! terminal.draw(|frame| {
 //!     let view = MarkdownView::new(&theme);
 //!     frame.render_stateful_widget(view, frame.area(), &mut state);
 //! })?;
 //!
-//! // The link under a click.
-//! let clicked = state.link_at(4, 2).map(|l| l.url.as_str());
-//! assert_eq!(clicked, Some("https://docs.rs"));
-//!
-//! // The link focused from the keyboard.
+//! // On input, scroll, focus the next link, or find the link under a click.
+//! state.scroll_by(1);
 //! state.focus_next();
-//! let focused = state.focused().map(|l| l.url.as_str());
-//! assert_eq!(focused, Some("https://docs.rs"));
+//! let focused = state.focused().map(|link| link.url.as_str()); // Some("https://docs.rs/ratmark")
+//! let clicked = state.link_at(5, 2).map(|link| link.url.as_str()); // Some("https://docs.rs/ratmark")
+//! # assert_eq!(focused, Some("https://docs.rs/ratmark"));
+//! # assert_eq!(clicked, Some("https://docs.rs/ratmark"));
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
+//!
+//! [`MarkdownState`] holds the document, its layout and where you are in it.
+//! [`MarkdownView`] wraps the document to the width it's given, rewrapping
+//! when the width changes, and draws it scrolled with the focused link
+//! highlighted.
 //!
 //! Underneath, [`Rendered::render`] lays a document out for a given width
 //! and returns its lines along with where each link landed.
@@ -124,6 +129,7 @@
 //!
 //! [Ratatui]: https://ratatui.rs
 //! [`StatefulWidget`]: ratatui_core::widgets::StatefulWidget
+//! [`Terminal`]: ratatui_core::terminal::Terminal
 
 #![warn(missing_docs)]
 
