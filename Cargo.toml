@@ -77,3 +77,8 @@ required-features = ["html"]
 [[example]]
 name = "links"
 required-features = ["links"]
+
+# Takes directories of Markdown as arguments, which libtest can't.
+[[test]]
+name = "corpus"
+harness = false

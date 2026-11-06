@@ -1,20 +1,7 @@
-use ratmark::{Region, Rendered, Theme};
-use unicode_width::UnicodeWidthStr;
+mod common;
 
-fn lines(markdown: &str, width: u16) -> Vec<String> {
-    Rendered::render(markdown, width, &Theme::default())
-        .lines
-        .iter()
-        .map(|l| {
-            l.spans
-                .iter()
-                .map(|s| s.content.as_ref())
-                .collect::<String>()
-                .trim_end()
-                .to_owned()
-        })
-        .collect()
-}
+use common::lines;
+use ratmark::{Region, Rendered, Theme};
 
 #[test]
 fn paragraphs_wrap_with_gaps() {
@@ -205,39 +192,6 @@ fn images_become_links() {
     let rendered = Rendered::render("![a cat](/cat.png)", 40, &Theme::default());
     assert_eq!(rendered.links[0].url, "/cat.png");
     assert_eq!(lines("![a cat](/cat.png)", 40), ["[image: a cat]"]);
-}
-
-/// Renders every Markdown file under `$RATMARK_CORPUS` at several widths,
-/// checking nothing panics and no line is too wide.
-#[test]
-fn corpus() {
-    let Ok(dir) = std::env::var("RATMARK_CORPUS") else {
-        return;
-    };
-    let mut stack = vec![std::path::PathBuf::from(dir)];
-    let mut count = 0;
-    while let Some(path) = stack.pop() {
-        if path.is_dir() {
-            stack.extend(std::fs::read_dir(&path).unwrap().map(|e| e.unwrap().path()));
-            continue;
-        }
-        if path.extension().is_none_or(|e| e != "md") {
-            continue;
-        }
-        let markdown = std::fs::read_to_string(&path).unwrap();
-        for width in [1, 8, 20, 45, 80, 200] {
-            for (i, line) in lines(&markdown, width).iter().enumerate() {
-                assert!(
-                    line.width() <= usize::from(width),
-                    "{}:{i} is {} wide at {width}: {line:?}",
-                    path.display(),
-                    line.width(),
-                );
-            }
-        }
-        count += 1;
-    }
-    assert!(count > 0, "no Markdown found");
 }
 
 #[test]
