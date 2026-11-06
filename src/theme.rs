@@ -54,7 +54,15 @@ pub struct Theme {
     /// Text from `<small>` tags, used for things like dates under a title.
     pub small: Style,
     /// The syntect theme used to color code blocks, when the `syntax`
-    /// feature is on. Only its foreground colors are used.
+    /// feature is on. Only its foreground colors are used. Besides syntect's
+    /// bundled themes there's `"ansi"`, which colors code with terminal
+    /// color numbers, like [`Theme::ansi_dark`].
+    ///
+    /// As in [bat], a syntect color with an alpha of `00` names a terminal
+    /// color by the number in its red, and an alpha of `01` keeps the code
+    /// block's own foreground.
+    ///
+    /// [bat]: https://github.com/sharkdp/bat
     pub syntax: Option<&'static str>,
     /// Styles for elements with these classes, written like CSS class
     /// selectors, `.note` or `.note.warning`, and patched in order over
@@ -67,58 +75,68 @@ pub struct Theme {
 
 impl Default for Theme {
     fn default() -> Self {
-        Self::gruvbox()
+        Self::ansi_dark()
     }
 }
 
 impl Theme {
-    /// Gruvbox dark, after the look of Tyler Bloom's blog, The Avid
-    /// Rustacean, which this crate's design comes from.
-    pub fn gruvbox() -> Self {
-        const FG: Color = Color::Rgb(0xeb, 0xdb, 0xb2);
-        const BG2: Color = Color::Rgb(0x50, 0x49, 0x45);
-        const GRAY: Color = Color::Rgb(0x92, 0x83, 0x74);
-        const BURNT: Color = Color::Rgb(0xd6, 0x5d, 0x0e);
-        const ORANGE: Color = Color::Rgb(0xfe, 0x80, 0x19);
-        const YELLOW: Color = Color::Rgb(0xfa, 0xbd, 0x2f);
-        const GREEN: Color = Color::Rgb(0xb8, 0xbb, 0x26);
-        const TEAL: Color = Color::Rgb(0x8e, 0xc0, 0x7c);
-        const BLUE: Color = Color::Rgb(0x83, 0xa5, 0x98);
-        const PINK: Color = Color::Rgb(0xd3, 0x86, 0x9b);
+    /// The terminal's own colors, for a dark background.
+    ///
+    /// Every color is a terminal color number, never a fixed color, so the
+    /// terminal's palette decides what each looks like, and text and the
+    /// background are the terminal's own. Code, inline or in blocks, sits on
+    /// gray 234 from the 256-color ramp, which suits a dark background.
+    pub fn ansi_dark() -> Self {
+        Self::ansi(234)
+    }
 
-        let bold = Modifier::BOLD;
+    /// The terminal's own colors, for a light background. The same as
+    /// [`Theme::ansi_dark`], but code sits on the light gray 255.
+    pub fn ansi_light() -> Self {
+        Self::ansi(255)
+    }
+
+    /// The terminal's own colors, with `shade` behind all code.
+    fn ansi(shade: u8) -> Self {
+        const GREEN: Color = Color::Indexed(2);
+        const BLUE: Color = Color::Indexed(4);
+        const MAGENTA: Color = Color::Indexed(5);
+        const CYAN: Color = Color::Indexed(6);
+        // Bright black, the terminal's muted gray.
+        const GRAY: Color = Color::Indexed(8);
+
+        let bold = Style::new().add_modifier(Modifier::BOLD);
+        let gray = Style::new().fg(GRAY);
         Self {
-            text: Style::new().fg(FG),
+            text: Style::new(),
             headings: [
-                Style::new()
-                    .fg(YELLOW)
-                    .add_modifier(bold | Modifier::UNDERLINED),
-                Style::new().fg(YELLOW).add_modifier(bold),
-                Style::new().fg(ORANGE).add_modifier(bold),
-                Style::new().fg(ORANGE),
-                Style::new().fg(GREEN),
-                Style::new().fg(GREEN),
+                bold.add_modifier(Modifier::UNDERLINED),
+                bold,
+                bold,
+                bold,
+                bold,
+                bold,
             ],
             heading_marker: None,
             emphasis: Style::new().add_modifier(Modifier::ITALIC),
-            strong: Style::new().add_modifier(bold),
+            strong: bold,
             strikethrough: Style::new().add_modifier(Modifier::CROSSED_OUT),
             link: Style::new().fg(BLUE).add_modifier(Modifier::UNDERLINED),
-            image: Style::new().fg(PINK),
-            code: Style::new().fg(BURNT).bg(BG2),
-            code_block: Style::new().fg(FG).bg(BG2),
+            image: Style::new().fg(MAGENTA),
+            code: Style::new().fg(GREEN).bg(Color::Indexed(shade)),
+            code_block: Style::new().bg(Color::Indexed(shade)),
             code_block_padding: true,
-            quote: Style::new().fg(ORANGE),
-            quote_marker: Style::new().fg(GRAY),
-            list_marker: Style::new().fg(TEAL),
-            rule: Style::new().fg(GRAY),
-            math: Style::new().fg(TEAL),
-            footnote: Style::new().fg(PINK),
-            table_border: Style::new().fg(GRAY),
-            table_header: Style::new().fg(YELLOW).add_modifier(bold),
+            quote: Style::new().add_modifier(Modifier::ITALIC),
+            quote_marker: gray,
+            list_marker: Style::new(),
+            rule: gray,
+            math: Style::new().fg(CYAN),
+            footnote: gray,
+            table_border: gray,
+            table_header: bold,
             table_row_rules: true,
-            small: Style::new().fg(GRAY),
-            syntax: Some("base16-eighties.dark"),
+            small: gray,
+            syntax: Some("ansi"),
             classes: Vec::new(),
         }
     }

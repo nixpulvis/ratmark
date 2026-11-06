@@ -27,15 +27,15 @@ const MARKDOWN: &str = r#"Markdown from real sites mixes in <em>HTML</em>, like
 
 fn main() -> std::io::Result<()> {
     // Classes are written like CSS selectors. A code block inside takes the
-    // background.
+    // background, here the theme's own gray from behind inline code.
+    let theme = common::theme();
+    let warning = Style {
+        bg: theme.code.bg,
+        ..Style::new().fg(Color::Yellow)
+    };
     let theme = Theme {
-        classes: vec![(
-            ".warning".into(),
-            Style::new()
-                .fg(Color::Yellow)
-                .bg(Color::Rgb(0x3c, 0x38, 0x36)),
-        )],
-        ..Theme::default()
+        classes: vec![(".warning".into(), warning)],
+        ..theme
     };
     common::print(&mut MarkdownState::new(MARKDOWN), &theme)
 }

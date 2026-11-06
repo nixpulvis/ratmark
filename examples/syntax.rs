@@ -4,7 +4,7 @@
 
 mod common;
 
-use ratmark::{MarkdownState, Theme};
+use ratmark::MarkdownState;
 
 const MARKDOWN: &str = r#"Fenced code is colored by its language:
 
@@ -27,11 +27,9 @@ just text
 "#;
 
 fn main() -> std::io::Result<()> {
-    // Any of syntect's bundled themes. Only their foreground colors are
-    // used, over the theme's code block background.
-    let theme = Theme {
-        syntax: Some("base16-ocean.dark"),
-        ..Theme::default()
-    };
-    common::print(&mut MarkdownState::new(MARKDOWN), &theme)
+    // The theme's "ansi" syntax colors use the terminal's own palette.
+    // Any of syntect's bundled themes, like "base16-ocean.dark", can be named
+    // in `Theme::syntax` instead. Only their foreground colors are used, over
+    // the theme's code block background.
+    common::print(&mut MarkdownState::new(MARKDOWN), &common::theme())
 }

@@ -12,7 +12,7 @@
 
 mod common;
 
-use ratmark::{MarkdownState, Theme};
+use ratmark::MarkdownState;
 
 const MARKDOWN: &str = "Relative links, like [the next page](next) and [the \
 home page](/), are made absolute against the document's own address. Others, \
@@ -22,5 +22,5 @@ still one link.";
 
 fn main() -> std::io::Result<()> {
     let mut state = MarkdownState::new(MARKDOWN).with_link_base("https://example.com/guide/start");
-    common::print(&mut state, &Theme::default())
+    common::print(&mut state, &common::theme())
 }

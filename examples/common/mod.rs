@@ -8,9 +8,19 @@ use ratatui_core::terminal::{Terminal, TerminalOptions, Viewport};
 use ratatui_core::widgets::StatefulWidget;
 use ratatui_crossterm::CrosstermBackend;
 use ratmark::{MarkdownState, MarkdownView, Rendered, Theme};
+use terminal_colorsaurus::{QueryOptions, ThemeMode, theme_mode};
 
 /// How wide the examples draw, at most.
 pub const WIDTH: u16 = 60;
+
+/// The theme for the terminal's background, asked of the terminal
+/// before anything is drawn. Dark when the terminal doesn't say.
+pub fn theme() -> Theme {
+    match theme_mode(QueryOptions::default()) {
+        Ok(ThemeMode::Light) => Theme::ansi_light(),
+        _ => Theme::ansi_dark(),
+    }
+}
 
 /// Draws the whole of `state`'s document, `WIDTH` columns wide or the
 /// terminal's width if that's narrower.

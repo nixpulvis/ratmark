@@ -48,10 +48,11 @@
 //! assert_eq!(rendered.links[0].url, "https://docs.rs");
 //! ```
 //!
-//! A [`Theme`] holds every style. [`Theme::gruvbox`] is the default, and
-//! [`Theme::plain`] uses no colors, so the terminal's own palette shows
-//! through. Every style is a public field, so making your own is a struct
-//! literal.
+//! A [`Theme`] holds every style. [`Theme::ansi_dark`] is the default, and
+//! [`Theme::ansi_light`] suits a light background. Both use
+//! terminal color numbers, so the terminal's palette decides what they look
+//! like. [`Theme::plain`] uses no colors at all. Every style is a public
+//! field, so making your own is a struct literal.
 //!
 //! CommonMark plus tables, footnotes, strikethrough, task lists, definition
 //! lists and math are supported. Code too wide for the page scrolls

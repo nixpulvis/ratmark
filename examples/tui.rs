@@ -8,22 +8,23 @@
 //! from a Jekyll site.
 
 use std::io::{self, Stdout};
+use std::time::Duration;
 use std::{env, fs, panic};
 
 use ratatui_core::layout::{Constraint, Layout};
-use ratatui_core::style::Color;
 use ratatui_core::terminal::{Frame, Terminal};
 use ratatui_core::text::Line;
 use ratatui_crossterm::CrosstermBackend;
 use ratatui_crossterm::crossterm::event::{
-    self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind, MouseButton,
-    MouseEvent, MouseEventKind,
+    self, DisableFocusChange, DisableMouseCapture, EnableFocusChange, EnableMouseCapture, Event,
+    KeyCode, KeyEventKind, MouseButton, MouseEvent, MouseEventKind,
 };
 use ratatui_crossterm::crossterm::execute;
 use ratatui_crossterm::crossterm::terminal::{
     EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode,
 };
 use ratmark::{MarkdownState, MarkdownView, Theme};
+use terminal_colorsaurus::{QueryOptions, ThemeMode, theme_mode};
 
 /// The widest the text gets, for comfortable reading on wide terminals.
 const MAX_WIDTH: u16 = 80;
@@ -34,9 +35,9 @@ const WHEEL: isize = 3;
 /// How far wide code shifts sideways per key press or wheel step, in columns.
 const SHIFT: isize = 4;
 
-/// Gruvbox's dark background. The theme leaves the background to the
-/// terminal, but its colors are made for this one.
-const BACKGROUND: Color = Color::Rgb(0x28, 0x28, 0x28);
+/// How long input has to be quiet before the terminal is asked for its
+/// background again, to follow a switch between light and dark.
+const RECHECK: Duration = Duration::from_secs(2);
 
 /// Shown at the bottom when there's nothing else to say.
 const HELP: &str = "tab links · enter follow · q quit";
@@ -63,16 +64,27 @@ fn main() -> io::Result<()> {
         Some(path) => fs::read_to_string(path)?,
         None => GUIDE.to_owned(),
     };
-    let theme = Theme::default();
+    // Ask the terminal for its background before raw mode, so the reply
+    // isn't read as input.
     App {
-        theme: Theme {
-            text: theme.text.bg(BACKGROUND),
-            ..theme
-        },
+        theme: background_theme(),
         state: MarkdownState::new(markdown),
         message: None,
     }
     .start()
+}
+
+/// The theme for the terminal's background, dark when the terminal doesn't
+/// say.
+///
+/// The reply is read straight from the terminal, so call this only when
+/// crossterm isn't reading events. Input typed while it waits for the reply
+/// can be lost.
+fn background_theme() -> Theme {
+    match theme_mode(QueryOptions::default()) {
+        Ok(ThemeMode::Light) => Theme::ansi_light(),
+        _ => Theme::ansi_dark(),
+    }
 }
 
 struct App {
@@ -83,8 +95,9 @@ struct App {
 }
 
 impl App {
-    /// Takes over the terminal, raw input, the alternate screen and the
-    /// mouse, runs until `q`, and gives the terminal back, even on a panic.
+    /// Takes over the terminal, raw input, the alternate screen, the mouse
+    /// and focus reports, runs until `q`, and gives the terminal back, even
+    /// on a panic.
     fn start(mut self) -> io::Result<()> {
         let hook = panic::take_hook();
         panic::set_hook(Box::new(move |info| {
@@ -92,7 +105,12 @@ impl App {
             hook(info);
         }));
         enable_raw_mode()?;
-        execute!(io::stdout(), EnterAlternateScreen, EnableMouseCapture)?;
+        execute!(
+            io::stdout(),
+            EnterAlternateScreen,
+            EnableMouseCapture,
+            EnableFocusChange
+        )?;
         let result = Terminal::new(CrosstermBackend::new(io::stdout()))
             .and_then(|mut terminal| self.run(&mut terminal));
         Self::stop()?;
@@ -101,13 +119,25 @@ impl App {
 
     /// Gives the terminal back the way it was.
     fn stop() -> io::Result<()> {
-        execute!(io::stdout(), DisableMouseCapture, LeaveAlternateScreen)?;
+        execute!(
+            io::stdout(),
+            DisableFocusChange,
+            DisableMouseCapture,
+            LeaveAlternateScreen
+        )?;
         disable_raw_mode()
     }
 
     fn run(&mut self, terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> io::Result<()> {
         loop {
             terminal.draw(|frame| self.draw(frame))?;
+            // When input has been quiet a while, or the window comes back
+            // into focus, ask for the background again, so the theme follows
+            // the terminal between light and dark.
+            if !event::poll(RECHECK)? {
+                self.recheck_background();
+                continue;
+            }
             match event::read()? {
                 Event::Key(key) if key.kind == KeyEventKind::Press => {
                     if key.code == KeyCode::Char('q') {
@@ -116,9 +146,15 @@ impl App {
                     self.key(key.code);
                 }
                 Event::Mouse(mouse) => self.mouse(mouse),
+                Event::FocusGained => self.recheck_background(),
                 _ => {}
             }
         }
+    }
+
+    /// Switches to the theme for the terminal's background.
+    fn recheck_background(&mut self) {
+        self.theme = background_theme();
     }
 
     /// Draws the document, with a status line under it.

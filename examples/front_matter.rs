@@ -5,8 +5,8 @@
 
 mod common;
 
+use ratmark::MarkdownState;
 use ratmark::front_matter::FrontMatter;
-use ratmark::{MarkdownState, Theme};
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
@@ -37,5 +37,5 @@ fn main() -> std::io::Result<()> {
     println!("tags:   {:?}\n", meta.tags);
 
     // Only the body goes to the state, so the front matter isn't drawn.
-    common::print(&mut MarkdownState::new(body), &Theme::default())
+    common::print(&mut MarkdownState::new(body), &common::theme())
 }

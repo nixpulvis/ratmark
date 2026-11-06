@@ -56,6 +56,9 @@ toml = { version = "1.1", optional = true, default-features = false, features = 
 # Draws the examples. Its cell extensions write native links as OSC 8.
 ratatui-crossterm = { git = "https://github.com/WeirdBrains/ratatui", branch = "multi-char-cells", features = ["cell-extensions"] }
 serde = { version = "1", features = ["derive"] }
+# Asks the terminal for its background, so the examples pick a dark or light
+# theme to match.
+terminal-colorsaurus = "1"
 unicode-width = "0.2"
 
 [[example]]

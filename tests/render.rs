@@ -84,6 +84,25 @@ fn code_blocks_fill_the_width() {
     assert_eq!(text.trim_end(), " fn x");
 }
 
+#[cfg(feature = "syntax")]
+#[test]
+fn code_is_highlighted_with_terminal_colors() {
+    use ratatui_core::style::Color;
+
+    let theme = Theme::default();
+    let rendered = Rendered::render("```rust\nx; // y\n```", 20, &theme);
+    let fg = |text: &str| {
+        rendered.lines[0]
+            .spans
+            .iter()
+            .find(|s| s.content.contains(text))
+            .map(|s| s.style.fg)
+    };
+    assert_eq!(fg("//"), Some(Some(Color::Indexed(8))));
+    // What the syntax theme doesn't color keeps the code block's own color.
+    assert_eq!(fg("x"), Some(theme.code_block.fg));
+}
+
 #[test]
 fn long_code_lines_are_cut_off() {
     let out = lines("```\nabcdefgh\nab\n```", 6);

@@ -90,8 +90,8 @@ impl StatefulWidget for MarkdownView<'_> {
 #[derive(Debug, Clone, Default)]
 pub struct MarkdownState {
     markdown: String,
-    /// The layout, and the width it was made for.
-    rendered: Option<(u16, Rendered)>,
+    /// The layout, and the width and theme it was made with.
+    rendered: Option<(u16, Theme, Rendered)>,
     scroll: usize,
     /// How far each code block too wide for the page is shifted sideways,
     /// by [`Overflow::block`].
@@ -131,7 +131,7 @@ impl MarkdownState {
 
     /// The document as last laid out, once it has been drawn.
     pub fn rendered(&self) -> Option<&Rendered> {
-        self.rendered.as_ref().map(|(_, r)| r)
+        self.rendered.as_ref().map(|(_, _, r)| r)
     }
 
     /// The first line on screen.
@@ -229,15 +229,19 @@ impl MarkdownState {
         self.rendered()?.link_at(line, x)
     }
 
-    /// Lays the document out for `area`, if it isn't already for its
-    /// width, and keeps the scroll inside it.
+    /// Lays the document out for `area` with `theme`, if it isn't already
+    /// for its width and that theme, and keeps the scroll inside it.
     fn lay_out(&mut self, area: Rect, theme: &Theme) {
         self.area = area;
-        if self.rendered.as_ref().is_none_or(|(w, _)| *w != area.width) {
+        if self
+            .rendered
+            .as_ref()
+            .is_none_or(|(w, t, _)| *w != area.width || t != theme)
+        {
             // Links come out in the same order at any width, so the focus
             // stays put through a resize.
             let rendered = Rendered::render(&self.markdown, area.width, theme);
-            self.rendered = Some((area.width, rendered));
+            self.rendered = Some((area.width, theme.clone(), rendered));
         }
         self.apply_anchor();
         self.clamp();
@@ -359,7 +363,7 @@ impl MarkdownState {
     }
 
     fn apply_anchor(&mut self) {
-        let Some((_, rendered)) = &self.rendered else {
+        let Some((_, _, rendered)) = &self.rendered else {
             return;
         };
         let Some(anchor) = self.anchor.take() else {
@@ -499,6 +503,17 @@ mod tests {
         assert_eq!(state.scroll(), 2);
         assert!(state.page_by(-5));
         assert_eq!(state.scroll(), 0);
+    }
+
+    #[test]
+    fn a_new_theme_is_drawn_at_the_same_width() {
+        let mut state = MarkdownState::new("```\nx\n```");
+        let area = Rect::new(0, 0, 10, 1);
+        let mut buf = Buffer::empty(area);
+        for theme in [Theme::ansi_dark(), Theme::ansi_light()] {
+            MarkdownView::new(&theme).render(area, &mut buf, &mut state);
+            assert_eq!(buf[(1, 0)].bg, theme.code_block.bg.unwrap());
+        }
     }
 
     #[test]

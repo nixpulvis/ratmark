@@ -35,7 +35,7 @@ fn main() -> std::io::Result<()> {
     // text, and a class after inline code styles it.
     let theme = Theme {
         classes: vec![(".new".into(), Style::new().fg(Color::Green))],
-        ..Theme::default()
+        ..common::theme()
     };
     common::print(&mut MarkdownState::new(MARKDOWN), &theme)
 }
