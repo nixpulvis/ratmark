@@ -2,105 +2,131 @@
 
 Render Markdown into [Ratatui] text.
 
+It handles CommonMark plus tables, footnotes, strikethrough, task lists,
+definition lists and math, and the [features](#features) add syntax
+highlighting, HTML, front matter, kramdown and terminal links.
+
+## Usage
+
+Draw a `MarkdownView` in any Ratatui `Terminal`, then drive its state from
+input:
+
 ```rust
-let theme = ratmark::Theme::default();
-let mut state = ratmark::MarkdownState::new(markdown);
+use ratmark::{MarkdownState, MarkdownView, Theme};
 
-// Each frame:
-frame.render_stateful_widget(ratmark::MarkdownView::new(&theme), area, &mut state);
+let theme = Theme::default();
+let mut state = MarkdownState::new("# Hello\n\nRead [the docs](https://docs.rs/ratmark).");
 
-// On input:
+// `terminal` is your app's `ratatui_core::terminal::Terminal`, like
+// `Terminal::new(CrosstermBackend::new(io::stdout()))?` from ratatui-crossterm.
+terminal.draw(|frame| {
+    let view = MarkdownView::new(&theme);
+    frame.render_stateful_widget(view, frame.area(), &mut state);
+})?;
+
+// On input, scroll, focus the next link, or find the link under a click.
 state.scroll_by(1);
 state.focus_next();
-if let Some(link) = state.focused() { open(&link.url) }
-if let Some(link) = state.link_at(mouse.column, mouse.row) { open(&link.url) }
+let focused = state.focused().map(|link| link.url.as_str()); // Some("https://docs.rs/ratmark")
+let clicked = state.link_at(5, 2).map(|link| link.url.as_str()); // Some("https://docs.rs/ratmark")
 ```
 
-`MarkdownView` lays the document out to fit, again whenever the width
-changes, and draws it scrolled with the focused link highlighted. Ratatui
-cells can't carry a URL, so the state keeps track of where every link landed,
-which is what makes keyboard focus and clicks work on links in the middle of
-wrapped text. For drawing a document some other way, `Rendered::render`
-returns the wrapped lines and link positions directly.
-
-With the `links` feature, the view also writes each link's URL into
-its cells, so backends that support it draw links the terminal or browser
-knows about, like OSC 8. It needs Ratatui's cell extensions, which aren't
-released yet ([ratatui#2854]), and `MarkdownState::with_link_base` makes
-the links absolute.
-
-It handles CommonMark plus tables, footnotes, strikethrough, task lists,
-definition lists and math. Code blocks can be syntax highlighted with
-[syntect], through the `syntax` feature, which is off by default. It uses
-syntect's pure Rust regex engine, so ratmark also builds for
-`wasm32-unknown-unknown` and works in the browser with something like
-[Ratzilla].
-
-Markdown written for real sites tends to have HTML mixed in. With the `html`
-feature, off by default, ratmark reads the text, links and simple formatting
-out of it with [html5gum]'s tokenizer instead of printing tags. Without it,
-HTML is left out.
-
-A few optional features help with Markdown from static sites.
-`front-matter-yaml` and `front-matter-toml` split YAML front matter, between
-`---` lines, or TOML front matter, between `+++` lines, off the top of a
-document, and deserialize it into your own serde types with [serde-saphyr]
-or [toml].
-
-The `kramdown` feature reads Markdown written for kramdown, since that's what
-Jekyll uses, with [pulldown-kram]. `{:toc}` lists become tables of contents,
-attribute lists like `{:.no_toc}` are taken out of the text, and Markdown
-inside `markdown="1"` elements is rendered as Markdown.
-
-Two themes come with it. `Theme::gruvbox()` is the default, and
-`Theme::plain()` uses no colors so the terminal's own palette shows through.
-Every style is a public field, so making your own is a struct literal.
-`Theme::classes` styles elements by class, written like CSS selectors. It
-reads classes from HTML, like a `<div class="note">` around a code block,
-which then takes the class's background, and from kramdown attribute lists
-after inline code, like `` `x`{:.note} ``.
-
-## Credit
-
-The idea and the look come from Tyler Bloom's blog, [The Avid
-Rustacean][avid-rustacean], which renders its posts with Ratatui in the
-browser. ratmark is a fresh implementation, not a copy of that code.
-
-## Testing
-
-`cargo test` runs the unit tests. To check a pile of real documents, point
-`RATMARK_CORPUS` at a directory of Markdown files. Every file is rendered at
-several widths, checking that nothing panics and no line is too wide.
-
-```sh
-RATMARK_CORPUS=~/site/_site cargo test --features kramdown corpus
-```
-
-`cargo run --example dump -- FILE WIDTH` prints a file as rendered, without
-colors, which is handy for eyeballing layout.
+`MarkdownState` holds the document, its layout and where you are in it.
+`MarkdownView` wraps the document to the width it's given, rewrapping when the
+width changes, and draws it scrolled with the focused link highlighted.
 
 ## Examples
 
-`tui` is a full-screen reader, `MarkdownState` driving a small app that
-scrolls, follows links and shifts wide code sideways, with the keyboard and
-mouse. Without a file it shows a guide to its keys. Turn on the features a
-file needs, like `syntax` to highlight the code in this one:
+`tui` is a full-screen reader, `MarkdownState` driving a small app that scrolls,
+follows links and shifts wide code sideways, with the keyboard and mouse.
+Without a file it shows a guide to its keys. Turn on the features a file needs,
+like `syntax` to highlight the code in this one:
 
 ```sh
 cargo run --example tui --features syntax -- README.md
 ```
 
-Each feature has an example that prints a short document, drawn by
-`MarkdownView` with Ratatui's crossterm backend, to the terminal in color.
-They need an interactive terminal, not a pipe:
+## Features
+
+All features are off by default. Each has an example that prints a short
+document, drawn by `MarkdownView` with Ratatui's crossterm backend, to the
+terminal in color. They need an interactive terminal, not a pipe.
+
+### `syntax`
+
+Code blocks are syntax highlighted with [syntect]. It uses syntect's pure Rust
+regex engine, so ratmark also builds for `wasm32-unknown-unknown` and works in
+the browser with something like [Ratzilla].
 
 ```sh
 cargo run --example syntax --features syntax
+```
+
+### `front-matter-yaml` and `front-matter-toml`
+
+These help with Markdown from static sites. They split YAML front matter,
+between `---` lines, or TOML front matter, between `+++` lines, off the top of a
+document, and deserialize it into your own serde types with [serde-saphyr] or
+[toml].
+
+```sh
 cargo run --example front_matter --features front-matter-yaml
+```
+
+### `kramdown`
+
+Reads Markdown written for kramdown, since that's what Jekyll uses, with
+[pulldown-kram]. Attribute lists like `{: #intro .note lang="en"}` are read off
+blocks and spans, `{:toc}` lists become tables of contents, and Markdown inside
+`markdown="1"` elements is rendered as Markdown.
+
+Turn on `html` with it. kramdown reads the text inside elements like `<kbd>` as
+HTML, so without `html` that text is left out too.
+
+```sh
 cargo run --example kramdown --features kramdown
+```
+
+### `html`
+
+Markdown written for real sites tends to have HTML mixed in. ratmark reads the
+text, links and simple formatting out of it with [html5gum]'s tokenizer instead
+of printing tags. Without this feature, HTML is left out.
+
+```sh
 cargo run --example html --features html
+```
+
+### `links`
+
+The view also writes each link's URL into its cells, so backends that support it
+draw links the terminal or browser knows about, like OSC 8. It needs Ratatui's
+cell extensions, which aren't released yet ([ratatui#2854]), and
+`MarkdownState::with_link_base` makes the links absolute.
+
+```sh
 cargo run --example links --features links
 ```
+
+## Testing
+
+`cargo test` runs the unit tests. To check a pile of real documents, pass the
+`corpus` test a directory of Markdown files, searched recursively. Every file
+is rendered at several widths, checking that nothing panics and no line is too
+wide.
+
+```sh
+cargo test --features kramdown --test corpus -- path/to/markdown
+```
+
+`cargo run --example dump -- FILE WIDTH` prints a file as rendered, without
+colors, which is handy for eyeballing layout.
+
+## Credit
+
+The idea and the look come from Tyler Bloom's blog, [The Avid
+Rustacean][avid-rustacean], which renders its posts with Ratatui in the browser.
+`ratmark` is a fresh implementation, not a copy of that code.
 
 ## License
 
