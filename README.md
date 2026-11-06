@@ -81,6 +81,15 @@ colors, which is handy for eyeballing layout.
 
 ## Examples
 
+`tui` is a full-screen reader, `MarkdownState` driving a small app that
+scrolls, follows links and shifts wide code sideways, with the keyboard and
+mouse. Without a file it shows a guide to its keys. Turn on the features a
+file needs, like `syntax` to highlight the code in this one:
+
+```sh
+cargo run --example tui --features syntax -- README.md
+```
+
 Each feature has an example that prints a short document, drawn by
 `MarkdownView` with Ratatui's crossterm backend, to the terminal in color.
 They need an interactive terminal, not a pipe:
