@@ -31,7 +31,7 @@ const MAX_WIDTH: u16 = 80;
 /// How far the mouse wheel scrolls, in lines.
 const WHEEL: isize = 3;
 
-/// How far wide code shifts sideways per key press, in columns.
+/// How far wide code shifts sideways per key press or wheel step, in columns.
 const SHIFT: isize = 4;
 
 /// Gruvbox's dark background. The theme leaves the background to the
@@ -52,7 +52,7 @@ to read that instead.
 |-------------------|---------------------------------|
 | `↑` `↓`, wheel    | Scroll                          |
 | `PgUp` `PgDn`     | Scroll a page                   |
-| `←` `→`           | Shift wide code sideways        |
+| `←` `→`, wheel    | Shift wide code sideways        |
 | `tab` `shift-tab` | Focus the next or previous link |
 | `enter`, click    | Follow a link                   |
 | `q`               | Quit                            |
@@ -165,6 +165,8 @@ impl App {
         match mouse.kind {
             MouseEventKind::ScrollDown => _ = state.scroll_by(WHEEL),
             MouseEventKind::ScrollUp => _ = state.scroll_by(-WHEEL),
+            MouseEventKind::ScrollRight => _ = state.shift_at(mouse.column, mouse.row, SHIFT),
+            MouseEventKind::ScrollLeft => _ = state.shift_at(mouse.column, mouse.row, -SHIFT),
             MouseEventKind::Down(MouseButton::Left) => {
                 if let Some(link) = state.link_at(mouse.column, mouse.row) {
                     let url = link.url.clone();
