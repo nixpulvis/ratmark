@@ -1,0 +1,98 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Render Markdown as a Ratatui `StatefulWidget`, or into Ratatui text."><title>ratmark - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../static.files/rustdoc-0c87338a.css"><meta name="rustdoc-vars" data-root-path="../" data-static-root-path="../static.files/" data-current-crate="ratmark" data-themes="" data-resource-suffix="" data-rustdoc-version="1.99.1 (58cf8f9c3 2026-10-13)" data-channel="1.99.1" data-search-js="search-cf4fc35e.js" data-stringdex-js="stringdex-b5109af9.js" data-settings-js="settings-170eb4bf.js" ><script src="../static.files/storage-41dd4d93.js"></script><script defer src="../crates.js"></script><script defer src="../static.files/main-417ebf0a.js"></script><noscript><link rel="stylesheet" href="../static.files/noscript-9f56287d.css"></noscript><link rel="alternate icon" type="image/png" href="../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../static.files/favicon-044be391.svg"></head><body class="rustdoc mod crate"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Crate ratmark</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../ratmark/index.html">ratmark</a><span class="version">0.1.0</span></h2></div><div class="sidebar-elems"><ul class="block"><li><a id="all-types" href="all.html">All Items</a></li></ul><section id="rustdoc-toc"><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#features" title="Features">Features</a></li></ul><h3><a href="#modules">Crate Items</a></h3><ul class="block"><li><a href="#modules" title="Modules">Modules</a></li><li><a href="#structs" title="Structs">Structs</a></li></ul></section><div id="rustdoc-modnav"></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><h1>Crate <span>ratmark</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../src/ratmark/lib.rs.html#1-227">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Render Markdown as a <a href="https://ratatui.rs">Ratatui</a> <a href="ratatui_core::widgets::StatefulWidget"><code>StatefulWidget</code></a>, or into Ratatui text.</p>
+<p>Draw a <a href="struct.MarkdownView.html" title="struct ratmark::MarkdownView"><code>MarkdownView</code></a> in any Ratatui <a href="ratatui_core::terminal::Terminal"><code>Terminal</code></a>, then drive its state
+from input:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>ratmark::{MarkdownState, MarkdownView, Theme};
+
+<span class="kw">let </span>theme = Theme::default();
+<span class="kw">let </span><span class="kw-2">mut </span>state = MarkdownState::new(<span class="string">"# Hello\n\nRead [the docs](https://docs.rs/ratmark)."</span>);
+
+<span class="comment">// `terminal` is your app's `ratatui_core::terminal::Terminal`, like
+// `Terminal::new(CrosstermBackend::new(io::stdout()))?` from ratatui-crossterm.
+</span>terminal.draw(|frame| {
+    <span class="kw">let </span>view = MarkdownView::new(<span class="kw-2">&amp;</span>theme);
+    frame.render_stateful_widget(view, frame.area(), <span class="kw-2">&amp;mut </span>state);
+})<span class="question-mark">?</span>;
+
+<span class="comment">// On input, scroll, focus the next link, or find the link under a click.
+</span>state.scroll_by(<span class="number">1</span>);
+state.focus_next();
+<span class="kw">let </span>focused = state.focused().map(|link| link.url.as_str()); <span class="comment">// Some("https://docs.rs/ratmark")
+</span><span class="kw">let </span>clicked = state.link_at(<span class="number">5</span>, <span class="number">2</span>).map(|link| link.url.as_str()); <span class="comment">// Some("https://docs.rs/ratmark")</span></code></pre></div>
+<p><a href="struct.MarkdownState.html" title="struct ratmark::MarkdownState"><code>MarkdownState</code></a> holds the document, its layout and where you are in it.
+<a href="struct.MarkdownView.html" title="struct ratmark::MarkdownView"><code>MarkdownView</code></a> wraps the document to the width it’s given, rewrapping
+when the width changes, and draws it scrolled with the focused link
+highlighted.</p>
+<p>Underneath, <a href="struct.Rendered.html#method.render" title="associated function ratmark::Rendered::render"><code>Rendered::render</code></a> lays a document out for a given width
+and returns its lines along with where each link landed.</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>ratmark::{Rendered, Theme};
+
+<span class="kw">let </span>theme = Theme::default();
+<span class="kw">let </span>markdown = <span class="string">"# Hi\n\nSee [the docs](https://docs.rs)."</span>;
+<span class="kw">let </span>rendered = Rendered::render(markdown, <span class="number">40</span>, <span class="kw-2">&amp;</span>theme);
+
+<span class="macro">assert_eq!</span>(rendered.lines[<span class="number">0</span>].to_string(), <span class="string">"Hi"</span>);
+<span class="macro">assert_eq!</span>(rendered.lines[<span class="number">0</span>].spans[<span class="number">0</span>].style, theme.headings[<span class="number">0</span>]);
+<span class="macro">assert_eq!</span>(rendered.links[<span class="number">0</span>].url, <span class="string">"https://docs.rs"</span>);</code></pre></div>
+<p>A <a href="struct.Theme.html" title="struct ratmark::Theme"><code>Theme</code></a> holds every style. <a href="struct.Theme.html#method.ansi_dark" title="associated function ratmark::Theme::ansi_dark"><code>Theme::ansi_dark</code></a> is the default, and
+<a href="struct.Theme.html#method.ansi_light" title="associated function ratmark::Theme::ansi_light"><code>Theme::ansi_light</code></a> suits a light background. Both use
+terminal color numbers, so the terminal’s palette decides what they look
+like. <a href="struct.Theme.html#method.plain" title="associated function ratmark::Theme::plain"><code>Theme::plain</code></a> uses no colors at all. Every style is a public
+field, so making your own is a struct literal.</p>
+<p>CommonMark plus tables, footnotes, strikethrough, task lists, definition
+lists and math are supported. Code too wide for the page scrolls
+sideways rather than wrapping.</p>
+<h2 id="features"><a class="doc-anchor" href="#features">§</a>Features</h2>
+<ul>
+<li>The <code>links</code> feature draws real links, which the terminal or browser can open,
+on backends that support them. <a href="struct.MarkdownState.html#method.with_link_base" title="method ratmark::MarkdownState::with_link_base"><code>MarkdownState::with_link_base</code></a> makes
+relative links absolute.</li>
+<li>The <code>syntax</code> feature highlights code blocks with syntect.</li>
+<li>The <code>html</code> feature reads HTML embedded in the Markdown for its text, links
+and simple formatting.
+<ul>
+<li><code>&lt;a href&gt;</code> is a link.</li>
+<li><code>&lt;strong&gt;</code> and <code>&lt;b&gt;</code> are strong.</li>
+<li><code>&lt;em&gt;</code>, <code>&lt;i&gt;</code> and <code>&lt;cite&gt;</code> are emphasized.</li>
+<li><code>&lt;code&gt;</code>, <code>&lt;kbd&gt;</code>, <code>&lt;samp&gt;</code> and <code>&lt;tt&gt;</code> are code.</li>
+<li><code>&lt;s&gt;</code>, <code>&lt;del&gt;</code> and <code>&lt;strike&gt;</code> are struck through.</li>
+<li><code>&lt;small&gt;</code>, <code>&lt;sub&gt;</code> and <code>&lt;sup&gt;</code> are small.</li>
+<li><code>&lt;h1&gt;</code> to <code>&lt;h6&gt;</code> are headings.</li>
+<li><code>&lt;pre&gt;</code> is a code block, <code>&lt;br&gt;</code> a line break and <code>&lt;hr&gt;</code> a rule.</li>
+<li><code>&lt;li&gt;</code> is a bulleted item, in <code>&lt;ul&gt;</code> or <code>&lt;ol&gt;</code>.</li>
+<li><code>&lt;img src alt&gt;</code> is an image, like Markdown’s, and <code>&lt;svg aria-label&gt;</code> a
+figure.</li>
+<li><code>&lt;p&gt;</code>, <code>&lt;div&gt;</code>, <code>&lt;blockquote&gt;</code>, <code>&lt;section&gt;</code>, <code>&lt;article&gt;</code>, <code>&lt;header&gt;</code>,
+<code>&lt;footer&gt;</code>, <code>&lt;figure&gt;</code>, <code>&lt;table&gt;</code>, <code>&lt;tr&gt;</code>, <code>&lt;dl&gt;</code>, <code>&lt;dt&gt;</code> and <code>&lt;dd&gt;</code> start
+a new line, and <code>&lt;td&gt;</code> and <code>&lt;th&gt;</code> are spaced apart.</li>
+<li>Any element’s <code>class</code> is styled by <a href="struct.Theme.html#structfield.classes" title="field ratmark::Theme::classes"><code>Theme::classes</code></a>.</li>
+<li>Other tags show only their text. Comments, and the content of <code>&lt;script&gt;</code>,
+<code>&lt;style&gt;</code>, <code>&lt;template&gt;</code>, <code>&lt;head&gt;</code> and <code>&lt;svg&gt;</code>, are left out.</li>
+</ul>
+</li>
+<li>The <code>kramdown</code> feature reads Markdown written for kramdown, Jekyll’s default,
+with <a href="https://docs.rs/pulldown-kram">pulldown-kram</a>, which lists how much of
+kramdown it understands.
+<ul>
+<li>A list followed by <code>{:toc}</code> is a table of contents, linking to each heading
+without the class <code>no_toc</code>.</li>
+<li>Attribute lists, like <code>{:.no_toc}</code>, are taken out of the text, and classes
+on inline code, like <code>`x`{:.new}</code>, are styled by <a href="struct.Theme.html#structfield.classes" title="field ratmark::Theme::classes"><code>Theme::classes</code></a>.</li>
+<li>Markdown inside <code>markdown="1"</code> elements is rendered as Markdown.</li>
+<li>A line of only a span tag, like <code>&lt;img&gt;</code>, starts a paragraph rather than
+an HTML block.</li>
+</ul>
+</li>
+<li>The <code>front-matter-yaml</code> and <code>front-matter-toml</code> features add
+<a href="front_matter/index.html" title="mod ratmark::front_matter"><code>front_matter</code></a>, for splitting YAML or TOML front matter off the top of a
+document before rendering the rest, and deserializing it with serde.</li>
+</ul>
+</div></details><h2 id="modules" class="section-header">Modules<a href="#modules" class="anchor">§</a></h2><dl class="item-table"><dt><a class="mod" href="front_matter/index.html" title="mod ratmark::front_matter">front_<wbr>matter</a></dt><dd>A preamble of metadata at the very top of a file, fenced off from the
+document after it. Static site generators like Jekyll and Hugo read it
+from Markdown for a page’s title, date, tags and layout, and it isn’t
+meant to be shown as part of the page.</dd></dl><h2 id="structs" class="section-header">Structs<a href="#structs" class="anchor">§</a></h2><dl class="item-table"><dt><a class="struct" href="struct.Heading.html" title="struct ratmark::Heading">Heading</a></dt><dd>A heading and the line it starts on.</dd><dt><a class="struct" href="struct.Link.html" title="struct ratmark::Link">Link</a></dt><dd>A link and the places it was drawn.</dd><dt><a class="struct" href="struct.MarkdownState.html" title="struct ratmark::MarkdownState">Markdown<wbr>State</a></dt><dd>A document and where it’s scrolled to, for <a href="struct.MarkdownView.html" title="struct ratmark::MarkdownView"><code>MarkdownView</code></a>. Scrolling
+stays inside the document as last drawn.</dd><dt><a class="struct" href="struct.MarkdownView.html" title="struct ratmark::MarkdownView">Markdown<wbr>View</a></dt><dd>Draws a <a href="struct.MarkdownState.html" title="struct ratmark::MarkdownState"><code>MarkdownState</code></a>’s document, laid out to fit the area it’s
+given, scrolled and with its focused link highlighted.</dd><dt><a class="struct" href="struct.Overflow.html" title="struct ratmark::Overflow">Overflow</a></dt><dd>A code block too wide for the page. Its lines are cut off at the page’s
+edge, with a <code>›</code> where there’s more, and can be drawn shifted sideways to
+show the rest.</dd><dt><a class="struct" href="struct.Region.html" title="struct ratmark::Region">Region</a></dt><dd>A stretch of one line, in columns from the start of the line.</dd><dt><a class="struct" href="struct.Rendered.html" title="struct ratmark::Rendered">Rendered</a></dt><dd>A rendered document.</dd><dt><a class="struct" href="struct.Theme.html" title="struct ratmark::Theme">Theme</a></dt><dd>The styles used for each kind of Markdown element.</dd></dl></section></div></main></body></html>
