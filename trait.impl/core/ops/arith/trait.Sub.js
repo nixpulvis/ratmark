@@ -1,0 +1,9 @@
+(function() {
+    const implementors = Object.fromEntries([["pulldown_kram",[["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/nightly/core/ops/arith/trait.Sub.html\" title=\"trait core::ops::arith::Sub\">Sub</a> for <a class=\"struct\" href=\"pulldown_kram/struct.Extensions.html\" title=\"struct pulldown_kram::Extensions\">Extensions</a>",0]]],["ratatui_core",[["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/nightly/core/ops/arith/trait.Sub.html\" title=\"trait core::ops::arith::Sub\">Sub</a> for <a class=\"struct\" href=\"ratatui_core/style/struct.Modifier.html\" title=\"struct ratatui_core::style::Modifier\">Modifier</a>",0],["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/nightly/core/ops/arith/trait.Sub.html\" title=\"trait core::ops::arith::Sub\">Sub</a>&lt;<a class=\"struct\" href=\"ratatui_core/layout/struct.Offset.html\" title=\"struct ratatui_core::layout::Offset\">Offset</a>&gt; for <a class=\"struct\" href=\"ratatui_core/layout/struct.Position.html\" title=\"struct ratatui_core::layout::Position\">Position</a>",0],["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/nightly/core/ops/arith/trait.Sub.html\" title=\"trait core::ops::arith::Sub\">Sub</a>&lt;<a class=\"struct\" href=\"ratatui_core/layout/struct.Offset.html\" title=\"struct ratatui_core::layout::Offset\">Offset</a>&gt; for <a class=\"struct\" href=\"ratatui_core/layout/struct.Rect.html\" title=\"struct ratatui_core::layout::Rect\">Rect</a>",0]]]]);
+    if (window.register_implementors) {
+        window.register_implementors(implementors);
+    } else {
+        window.pending_implementors = implementors;
+    }
+})()
+//{"start":59,"fragment_lengths":[296,1121]}

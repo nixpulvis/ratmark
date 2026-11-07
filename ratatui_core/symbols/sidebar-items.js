@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["bar","block","border","braille","half_block","line","marker","merge","pixel","scrollbar","shade"]};
