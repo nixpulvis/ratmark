@@ -1,0 +1,47 @@
+# Build the docs from master and publish them to the root of the gh-pages
+# branch, which GitHub Pages serves at https://nixpulvis.com/ratmark/
+# (Settings > Pages > Deploy from a branch > gh-pages).
+name: Deploy
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency: deploy
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      # Every feature, as on docs.rs.
+      - run: cargo doc --no-deps --all-features
+
+      # rustdoc puts the crate's docs under ratmark/, with nothing at the
+      # root, so send the root there. .nojekyll keeps Pages from running the
+      # files through Jekyll.
+      - name: Add root redirect
+        run: |
+          rm -f target/doc/.lock
+          touch target/doc/.nojekyll
+          cat > target/doc/index.html <<'EOF'
+          <!DOCTYPE html>
+          <meta charset="utf-8">
+          <title>ratmark</title>
+          <meta http-equiv="refresh" content="0; url=ratmark/">
+          <link rel="canonical" href="ratmark/">
+          <a href="ratmark/">ratmark</a>
+          EOF
+
+      - uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: target/doc
+          branch: gh-pages

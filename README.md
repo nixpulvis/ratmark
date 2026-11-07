@@ -1,5 +1,8 @@
 # ratmark
 
+[![CI](https://github.com/nixpulvis/ratmark/actions/workflows/ci.yml/badge.svg)](https://github.com/nixpulvis/ratmark/actions/workflows/ci.yml)
+[![Documentation](https://img.shields.io/badge/docs-nixpulvis.com-blue)](https://nixpulvis.com/ratmark/)
+
 Render Markdown into [Ratatui] text.
 
 It handles CommonMark plus tables, footnotes, strikethrough, task lists,
