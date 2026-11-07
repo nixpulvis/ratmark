@@ -1,7 +1,7 @@
 # ratmark
 
 [![CI](https://github.com/nixpulvis/ratmark/actions/workflows/ci.yml/badge.svg)](https://github.com/nixpulvis/ratmark/actions/workflows/ci.yml)
-[![Documentation](https://img.shields.io/badge/docs-nixpulvis.com-blue)](https://nixpulvis.com/ratmark/)
+[![Documentation](https://img.shields.io/badge/docs-master-blue)](https://nixpulvis.com/ratmark/)
 
 Render Markdown into [Ratatui] text.
 

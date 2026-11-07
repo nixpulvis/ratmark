@@ -108,7 +108,7 @@
     feature = "kramdown",
     doc = concat!(
         "- The `kramdown` feature reads Markdown written for kramdown, Jekyll's default,\n",
-        "  with [pulldown-kram](https://docs.rs/pulldown-kram), which lists how much of\n",
+        "  with [pulldown-kram](pulldown_kram), which lists how much of\n",
         "  kramdown it understands.\n",
         "  - A list followed by `{:toc}` is a table of contents, linking to each heading\n",
         "    without the class `no_toc`.\n",
@@ -152,6 +152,13 @@ mod syntax;
 pub use overflow::Overflow;
 pub use theme::Theme;
 pub use view::{MarkdownState, MarkdownView};
+
+/// The `ratatui-core` that ratmark is built on. Use it to name the Ratatui
+/// types in ratmark's API, like the [`Line`]s in [`Rendered::lines`], so
+/// they're always the same version as ratmark's.
+///
+/// [`Line`]: ratatui_core::text::Line
+pub use ratatui_core;
 
 /// A rendered document.
 #[derive(Debug, Clone, Default, PartialEq)]
