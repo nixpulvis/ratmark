@@ -6,6 +6,8 @@ It handles CommonMark plus tables, footnotes, strikethrough, task lists,
 definition lists and math, and the [features](#features) add syntax
 highlighting, HTML, front matter, kramdown and terminal links.
 
+<img src=".github/screenshots/light.png" alt="ratmark's README drawn by the tui example, in a light theme" width="49%"><img src=".github/screenshots/dark.png" alt="ratmark's README drawn by the tui example, in a dark theme" width="49%">
+
 ## Usage
 
 Draw a `MarkdownView` in any Ratatui `Terminal`, then drive its state from
