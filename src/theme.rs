@@ -80,23 +80,24 @@ impl Default for Theme {
 }
 
 impl Theme {
-    /// The terminal's own colors, for a dark background.
+    /// Colors picked from the terminal's palette, for a dark background.
     ///
-    /// Every color is a terminal color number, never a fixed color, so the
-    /// terminal's palette decides what each looks like, and text and the
-    /// background are the terminal's own. Code, inline or in blocks, sits on
-    /// gray 234 from the 256-color ramp, which suits a dark background.
+    /// Each color is a terminal color number, like 4 for blue, never a fixed
+    /// RGB value, so the terminal's palette decides what it looks like. Text
+    /// and the background keep the terminal's defaults. Code, inline or in
+    /// blocks, sits on gray 234 from the 256-color ramp, which suits a dark
+    /// background.
     pub fn ansi_dark() -> Self {
         Self::ansi(234)
     }
 
-    /// The terminal's own colors, for a light background. The same as
-    /// [`Theme::ansi_dark`], but code sits on the light gray 255.
+    /// Colors picked from the terminal's palette, for a light background. The
+    /// same as [`Theme::ansi_dark`], but code sits on the light gray 255.
     pub fn ansi_light() -> Self {
         Self::ansi(255)
     }
 
-    /// The terminal's own colors, with `shade` behind all code.
+    /// Colors from the terminal's palette, with gray `shade` behind all code.
     fn ansi(shade: u8) -> Self {
         const GREEN: Color = Color::Indexed(2);
         const BLUE: Color = Color::Indexed(4);
@@ -141,8 +142,8 @@ impl Theme {
         }
     }
 
-    /// No colors at all, only bold, italic and the like, so the terminal's own
-    /// colors show through.
+    /// No colors at all, only bold, italic, underline, dim and reversed text.
+    /// It reads the same on any background, and in terminals without color.
     pub fn plain() -> Self {
         let bold = Style::new().add_modifier(Modifier::BOLD);
         let dim = Style::new().add_modifier(Modifier::DIM);
