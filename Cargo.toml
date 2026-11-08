@@ -55,7 +55,7 @@ serde = { version = "1", optional = true }
 serde-saphyr = { version = "2", optional = true, default-features = false, features = ["deserialize"] }
 toml = { version = "1.1", optional = true, default-features = false, features = ["std", "parse", "serde"] }
 wasm-bindgen = { version = "0.2", optional = true }
-web-sys = { version = "0.3", optional = true, features = ["AddEventListenerOptions", "DomRect", "Element", "EventTarget", "Touch", "TouchEvent", "TouchList", "WheelEvent", "Window"] }
+web-sys = { version = "0.3", optional = true, features = ["AddEventListenerOptions", "CssStyleDeclaration", "DomRect", "Element", "EventTarget", "HtmlElement", "Touch", "TouchEvent", "TouchList", "WheelEvent", "Window"] }
 
 [dev-dependencies]
 # Draws the examples. Its cell extensions write native links as OSC 8.

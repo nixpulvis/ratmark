@@ -1,17 +1,25 @@
 //! Scrolling with a wheel, a trackpad or a finger, a cell at a time.
 //!
-//! Hosts that report movement in pixels, like a browser, move the page as
-//! far as the hand does, a line at a time once a line's worth adds up, and
-//! sideways the wide code block under the pointer, or where a finger first
-//! touched, a column at a time the same way. Each gesture only goes one
-//! way, and a flick keeps the page gliding for a bit, slowing down, like a
-//! page in the browser does.
+//! Each gesture only goes one way, down the page, or sideways through the
+//! wide code block under the pointer, or where a finger first touched, so a
+//! swipe that's a little diagonal doesn't do both. Hosts that report
+//! movement in pixels, like a browser, move the page as far as the hand
+//! does, a line or a column at a time once one's worth adds up, and a flick
+//! keeps the page gliding for a bit, slowing down, like a page in the
+//! browser does.
 //!
 //! [`Gestures`] does the arithmetic, from pixels and timestamps, and hands
 //! each whole cell of movement to a callback as a [`Step`], which
-//! [`Step::apply`] carries out on a [`MarkdownState`]. Listening for the
-//! events is the host's job, or in a browser the `web` feature's
-//! `web::listen`.
+//! [`Step::apply`] carries out on a [`MarkdownState`]. Each host feeds it
+//! its own events:
+//!
+//! - In a terminal, [`terminal::Wheel`] takes the wheel's ticks, like
+//!   crossterm's `MouseEventKind::ScrollDown`.
+//! - In a browser, the `web` feature's `web::listen` follows the wheel and
+//!   touch events over the element a view is drawn in, like Ratzilla's.
+//! - Anywhere else that reports movement in pixels, call [`Gestures`]'
+//!   methods from its events, and [`Gestures::glide`] once a frame after
+//!   [`Gestures::touch_end`] says a touch was a flick.
 //!
 //! ```
 //! use ratmark::MarkdownState;
@@ -33,6 +41,8 @@
 //! assert_eq!(state.scroll(), 2);
 //! ```
 
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+pub mod terminal;
 #[cfg(feature = "web")]
 pub mod web;
 
@@ -54,27 +64,27 @@ const FRAME: f64 = 16.0;
 /// The way a gesture moves the view. A gesture only ever moves one way.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Axis {
-    /// Down the page, scrolling.
-    Down,
-    /// Sideways, shifting wide code.
-    Sideways,
+    /// Up and down the page, scrolling.
+    Vertical,
+    /// Left and right, shifting wide code.
+    Horizontal,
 }
 
 impl Axis {
     /// The way a move of `x`, `y` pixels mostly goes.
     fn of(x: f64, y: f64) -> Self {
         if x.abs() > y.abs() {
-            Axis::Sideways
+            Axis::Horizontal
         } else {
-            Axis::Down
+            Axis::Vertical
         }
     }
 
     /// The part of a move of `x`, `y` pixels that goes this way.
     fn part(self, x: f64, y: f64) -> f64 {
         match self {
-            Axis::Down => y,
-            Axis::Sideways => x,
+            Axis::Vertical => y,
+            Axis::Horizontal => x,
         }
     }
 }
@@ -100,8 +110,8 @@ impl Step {
     /// away from wide code.
     pub fn apply(self, state: &mut MarkdownState) -> bool {
         match self.axis {
-            Axis::Down => state.scroll_by(self.cells),
-            Axis::Sideways => state.shift_at(self.column, self.row, self.cells),
+            Axis::Vertical => state.scroll_by(self.cells),
+            Axis::Horizontal => state.shift_at(self.column, self.row, self.cells),
         }
     }
 }
@@ -268,8 +278,8 @@ impl Gestures {
 
     fn carried_mut(&mut self, axis: Axis) -> &mut f64 {
         match axis {
-            Axis::Down => &mut self.carried.1,
-            Axis::Sideways => &mut self.carried.0,
+            Axis::Vertical => &mut self.carried.1,
+            Axis::Horizontal => &mut self.carried.0,
         }
     }
 }
@@ -316,7 +326,7 @@ mod tests {
             gestures.wheel((0.0, 0.0), (0.0, pixels), time, record(&mut steps, 10));
         }
         // 8 pixels isn't a cell yet, 33 is 3 with 3 over, and -27 is -2.
-        assert_eq!(cells(&steps), [(Axis::Down, 3), (Axis::Down, -2)]);
+        assert_eq!(cells(&steps), [(Axis::Vertical, 3), (Axis::Vertical, -2)]);
         // After a pause a new gesture starts from nothing, rather than the -7
         // left over, so two 5s make a cell.
         gestures.wheel((0.0, 0.0), (0.0, 5.0), 500.0, record(&mut steps, 10));
@@ -331,13 +341,16 @@ mod tests {
         gestures.wheel((25.0, 35.0), (20.0, 5.0), 0.0, record(&mut steps, 10));
         // Still sideways, though now it's mostly down.
         gestures.wheel((25.0, 35.0), (10.0, 40.0), 50.0, record(&mut steps, 10));
-        assert_eq!(cells(&steps), [(Axis::Sideways, 2), (Axis::Sideways, 1)]);
+        assert_eq!(
+            cells(&steps),
+            [(Axis::Horizontal, 2), (Axis::Horizontal, 1)]
+        );
         // Over the cell at the pointer.
         assert_eq!((steps[0].column, steps[0].row), (2, 3));
         // Running into the end frees the next event to go the other way.
         gestures.wheel((0.0, 0.0), (10.0, 0.0), 60.0, record(&mut steps, 3));
         gestures.wheel((0.0, 0.0), (0.0, 10.0), 70.0, record(&mut steps, 10));
-        assert_eq!(steps[3].axis, Axis::Down);
+        assert_eq!(steps[3].axis, Axis::Vertical);
     }
 
     #[test]
@@ -351,7 +364,10 @@ mod tests {
         gestures.touch_move((90.0, 104.0), 20.0, record(&mut steps, 10));
         // Still sideways, though now it's mostly down.
         gestures.touch_move((88.0, 140.0), 30.0, record(&mut steps, 10));
-        assert_eq!(cells(&steps), [(Axis::Sideways, 10), (Axis::Sideways, 2)]);
+        assert_eq!(
+            cells(&steps),
+            [(Axis::Horizontal, 10), (Axis::Horizontal, 2)]
+        );
         // Over where the finger came down.
         assert_eq!((steps[1].column, steps[1].row), (100, 100));
         // Held still before lifting, so it doesn't glide.
@@ -379,7 +395,11 @@ mod tests {
         }
         // It glides on down, then slows to a stop.
         assert!(steps.len() > 1);
-        assert!(steps.iter().all(|s| s.axis == Axis::Down && s.cells > 0));
+        assert!(
+            steps
+                .iter()
+                .all(|s| s.axis == Axis::Vertical && s.cells > 0)
+        );
         assert!(steps[0].cells > steps[steps.len() - 1].cells);
         assert!(!gestures.glide(time + 16.0, record(&mut steps, usize::MAX)));
 

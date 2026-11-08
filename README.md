@@ -40,22 +40,14 @@ let clicked = state.link_at(5, 2).map(|link| link.url.as_str()); // Some("https:
 `MarkdownView` wraps the document to the width it's given, rewrapping when the
 width changes, and draws it scrolled with the focused link highlighted.
 
-## Scrolling
+## Input
 
-In the browser, scrolling comes in pixels, from a wheel, a trackpad or a
-finger, rather than whole lines. `gesture::Gestures` adds those up into a
-line, or a column of wide code, at a time, keeps each gesture going one way,
-and lets a flick glide to a stop. `Step::apply` carries each move out on a
-`MarkdownState`. The [`web`](#web) feature adds `gesture::web::listen`, which
-follows the wheel and touch events over the element a view is drawn in:
+Keys and clicks map onto `MarkdownState` methods like `scroll_by`, `shift_at`,
+`focus_next` and `link_at`. See its [docs][MarkdownState] for the rest.
 
-```rust
-let (width, height) = terminal.backend().cell_size_css_px();
-let cell = (f64::from(width), f64::from(height));
-ratmark::gesture::web::listen(&screen, cell, move |step| {
-    step.apply(&mut state.borrow_mut())
-})?;
-```
+Mouse wheels, trackpads and touch go through [`gesture`][gesture], which locks
+each gesture to one axis. Use [`terminal::Wheel`][Wheel] in a terminal, or
+[`web::listen`][listen] in the browser with the [`web`](#web) feature.
 
 ## Examples
 
@@ -133,8 +125,8 @@ cargo run --example links --features links
 ### `web`
 
 Follows a browser's wheel and touch events over the element a view is drawn in,
-like [Ratzilla]'s, with `gesture::web::listen`, as [Scrolling](#scrolling)
-shows. It needs `wasm32-unknown-unknown`, and a browser to try it in.
+like [Ratzilla]'s, with `gesture::web::listen`. It needs
+`wasm32-unknown-unknown`, and a browser to try it in.
 
 ## Testing
 
@@ -170,3 +162,7 @@ Licensed under either of [Apache License, Version 2.0](LICENSE-APACHE) or
 [Ratzilla]: https://github.com/orhun/ratzilla
 [avid-rustacean]: https://github.com/TylerBloom/avid-rustacean
 [ratatui#2854]: https://github.com/ratatui/ratatui/issues/2854
+[MarkdownState]: https://nixpulvis.com/ratmark/ratmark/struct.MarkdownState.html
+[gesture]: https://nixpulvis.com/ratmark/ratmark/gesture/index.html
+[Wheel]: https://nixpulvis.com/ratmark/ratmark/gesture/terminal/struct.Wheel.html
+[listen]: https://nixpulvis.com/ratmark/ratmark/gesture/web/fn.listen.html

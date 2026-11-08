@@ -7,28 +7,54 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use wasm_bindgen::prelude::*;
-use web_sys::{AddEventListenerOptions, Element, EventTarget, TouchEvent, WheelEvent};
+use web_sys::{AddEventListenerOptions, Element, EventTarget, HtmlElement, TouchEvent, WheelEvent};
 
 use super::{Gestures, Step};
 
 /// Starts following the wheel and touches over the view drawn in `screen`,
-/// with cells `cell` pixels wide and tall, handing each [`Step`] to `step`,
-/// which carries it out and returns whether it moved. The view takes these
-/// events over from the browser's own scrolling, and follows them for as
-/// long as the page lives.
+/// with cells `cell` CSS pixels wide and tall, handing each [`Step`] to
+/// `step`, which carries it out and returns whether it moved. The view takes
+/// these events over from the browser's own scrolling, setting `screen`'s
+/// `touch-action` to `none` so the browser doesn't pan or zoom with its
+/// touches first, and follows them for as long as the page lives, so call
+/// it once.
+///
+/// With [Ratzilla], the state is shared between drawing and scrolling, and
+/// the backend measures its cells:
 ///
 /// ```ignore
+/// use std::{cell::RefCell, rc::Rc};
+///
+/// use ratmark::{MarkdownState, MarkdownView, Theme};
+/// use ratzilla::ratatui::Terminal;
+/// use ratzilla::{CellSized, DomBackend, WebRenderer};
+///
+/// let state = Rc::new(RefCell::new(MarkdownState::new(markdown)));
+/// let terminal = Terminal::new(DomBackend::new_by_element(screen.clone())?)?;
+///
 /// let (width, height) = terminal.backend().cell_size_css_px();
 /// let cell = (f64::from(width), f64::from(height));
+/// let scrolled = state.clone();
 /// ratmark::gesture::web::listen(&screen, cell, move |step| {
-///     step.apply(&mut state.borrow_mut())
+///     step.apply(&mut scrolled.borrow_mut())
 /// })?;
+///
+/// let theme = Theme::default();
+/// terminal.draw_web(move |frame| {
+///     let view = MarkdownView::new(&theme);
+///     frame.render_stateful_widget(view, frame.area(), &mut state.borrow_mut());
+/// });
 /// ```
+///
+/// [Ratzilla]: https://github.com/orhun/ratzilla
 pub fn listen(
     screen: &Element,
     cell: (f64, f64),
     step: impl FnMut(Step) -> bool + 'static,
 ) -> Result<(), JsValue> {
+    if let Some(screen) = screen.dyn_ref::<HtmlElement>() {
+        screen.style().set_property("touch-action", "none")?;
+    }
     let listener = Rc::new(RefCell::new(Listener {
         gestures: Gestures::new(cell.0, cell.1),
         step: Box::new(step),

@@ -33,6 +33,16 @@
 //! when the width changes, and draws it scrolled with the focused link
 //! highlighted.
 //!
+//! Keys and clicks map onto [`MarkdownState`] methods like
+//! [`scroll_by`](MarkdownState::scroll_by),
+//! [`shift_at`](MarkdownState::shift_at),
+//! [`focus_next`](MarkdownState::focus_next) and
+//! [`link_at`](MarkdownState::link_at).
+//!
+//! Mouse wheels, trackpads and touch go through [`gesture`], which locks
+//! each gesture to one axis. Use [`gesture::terminal::Wheel`] in a terminal,
+//! or `gesture::web::listen` in the browser with the `web` feature.
+//!
 //! Underneath, [`Rendered::render`] lays a document out for a given width
 //! and returns its lines along with where each link landed.
 //!
@@ -57,10 +67,6 @@
 //! CommonMark plus tables, footnotes, strikethrough, task lists, definition
 //! lists and math are supported. Code too wide for the page scrolls
 //! sideways rather than wrapping.
-//!
-//! [`gesture`] turns wheel, trackpad and touch movement in pixels, as a
-//! browser reports it, into scrolling a line, or shifting code a column, at
-//! a time, with flicks that glide.
 //!
 #![cfg_attr(
     any(

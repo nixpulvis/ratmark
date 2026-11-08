@@ -23,16 +23,18 @@ use ratatui_crossterm::crossterm::execute;
 use ratatui_crossterm::crossterm::terminal::{
     EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode,
 };
+use ratmark::gesture::terminal::Wheel;
 use ratmark::{MarkdownState, MarkdownView, Theme};
 use terminal_colorsaurus::{QueryOptions, ThemeMode, theme_mode};
 
 /// The widest the text gets, for comfortable reading on wide terminals.
 const MAX_WIDTH: u16 = 80;
 
-/// How far the mouse wheel scrolls, in lines.
-const WHEEL: isize = 3;
+/// How far a tick of the mouse wheel scrolls, in lines, or shifts code, in
+/// columns.
+const WHEEL: u16 = 3;
 
-/// How far wide code shifts sideways per key press or wheel step, in columns.
+/// How far wide code shifts sideways per key press, in columns.
 const SHIFT: isize = 4;
 
 /// How long input has to be quiet before the terminal is asked for its
@@ -69,6 +71,7 @@ fn main() -> io::Result<()> {
     App {
         theme: background_theme(),
         state: MarkdownState::new(markdown),
+        wheel: Wheel::new(WHEEL),
         message: None,
     }
     .start()
@@ -90,6 +93,7 @@ fn background_theme() -> Theme {
 struct App {
     theme: Theme,
     state: MarkdownState,
+    wheel: Wheel,
     /// Shown at the bottom until the next key press.
     message: Option<String>,
 }
@@ -197,20 +201,24 @@ impl App {
     }
 
     fn mouse(&mut self, mouse: MouseEvent) {
-        let state = &mut self.state;
-        match mouse.kind {
-            MouseEventKind::ScrollDown => _ = state.scroll_by(WHEEL),
-            MouseEventKind::ScrollUp => _ = state.scroll_by(-WHEEL),
-            MouseEventKind::ScrollRight => _ = state.shift_at(mouse.column, mouse.row, SHIFT),
-            MouseEventKind::ScrollLeft => _ = state.shift_at(mouse.column, mouse.row, -SHIFT),
+        let ticks = match mouse.kind {
+            MouseEventKind::ScrollDown => (0, 1),
+            MouseEventKind::ScrollUp => (0, -1),
+            // Sideways, the wide code block under the pointer.
+            MouseEventKind::ScrollRight => (1, 0),
+            MouseEventKind::ScrollLeft => (-1, 0),
             MouseEventKind::Down(MouseButton::Left) => {
-                if let Some(link) = state.link_at(mouse.column, mouse.row) {
+                if let Some(link) = self.state.link_at(mouse.column, mouse.row) {
                     let url = link.url.clone();
                     self.follow(&url);
                 }
+                return;
             }
-            _ => {}
-        }
+            _ => return,
+        };
+        let state = &mut self.state;
+        self.wheel
+            .tick(mouse.column, mouse.row, ticks, |step| step.apply(state));
     }
 
     /// Scrolls to a `#section` link's heading. Other links are the app's to
