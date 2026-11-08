@@ -40,6 +40,15 @@ let clicked = state.link_at(5, 2).map(|link| link.url.as_str()); // Some("https:
 `MarkdownView` wraps the document to the width it's given, rewrapping when the
 width changes, and draws it scrolled with the focused link highlighted.
 
+## Input
+
+Keys and clicks map onto `MarkdownState` methods like `scroll_by`, `shift_at`,
+`focus_next` and `link_at`. See its [docs][MarkdownState] for the rest.
+
+Mouse wheels, trackpads and touch go through [`gesture`][gesture], which locks
+each gesture to one axis. Use [`terminal::Wheel`][Wheel] in a terminal, or
+[`web::listen`][listen] in the browser with the [`web`](#web) feature.
+
 ## Examples
 
 `tui` is a full-screen reader, `MarkdownState` driving a small app that scrolls,
@@ -53,8 +62,8 @@ cargo run --example tui --features syntax -- README.md
 
 ## Features
 
-All features are off by default. Each has an example that prints a short
-document, drawn by `MarkdownView` with Ratatui's crossterm backend, to the
+All features are off by default. Each, but `web`, has an example that prints a
+short document, drawn by `MarkdownView` with Ratatui's crossterm backend, to the
 terminal in color. They need an interactive terminal, not a pipe.
 
 ### `syntax`
@@ -113,6 +122,12 @@ cell extensions, which aren't released yet ([ratatui#2854]), and
 cargo run --example links --features links
 ```
 
+### `web`
+
+Follows a browser's wheel and touch events over the element a view is drawn in,
+like [Ratzilla]'s, with `gesture::web::listen`. It needs
+`wasm32-unknown-unknown`, and a browser to try it in.
+
 ## Testing
 
 `cargo test` runs the unit tests. To check a pile of real documents, pass the
@@ -147,3 +162,7 @@ Licensed under either of [Apache License, Version 2.0](LICENSE-APACHE) or
 [Ratzilla]: https://github.com/orhun/ratzilla
 [avid-rustacean]: https://github.com/TylerBloom/avid-rustacean
 [ratatui#2854]: https://github.com/ratatui/ratatui/issues/2854
+[MarkdownState]: https://nixpulvis.com/ratmark/ratmark/struct.MarkdownState.html
+[gesture]: https://nixpulvis.com/ratmark/ratmark/gesture/index.html
+[Wheel]: https://nixpulvis.com/ratmark/ratmark/gesture/terminal/struct.Wheel.html
+[listen]: https://nixpulvis.com/ratmark/ratmark/gesture/web/fn.listen.html

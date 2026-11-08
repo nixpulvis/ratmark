@@ -33,6 +33,16 @@
 //! when the width changes, and draws it scrolled with the focused link
 //! highlighted.
 //!
+//! Keys and clicks map onto [`MarkdownState`] methods like
+//! [`scroll_by`](MarkdownState::scroll_by),
+//! [`shift_at`](MarkdownState::shift_at),
+//! [`focus_next`](MarkdownState::focus_next) and
+//! [`link_at`](MarkdownState::link_at).
+//!
+//! Mouse wheels, trackpads and touch go through [`gesture`], which locks
+//! each gesture to one axis. Use [`gesture::terminal::Wheel`] in a terminal,
+//! or `gesture::web::listen` in the browser with the `web` feature.
+//!
 //! Underneath, [`Rendered::render`] lays a document out for a given width
 //! and returns its lines along with where each link landed.
 //!
@@ -65,6 +75,7 @@
         feature = "html",
         feature = "kramdown",
         feature = "_front-matter",
+        feature = "web",
     ),
     doc = "# Features"
 )]
@@ -127,6 +138,13 @@
         "  document before rendering the rest, and deserializing it with serde.",
     )
 )]
+#![cfg_attr(
+    feature = "web",
+    doc = concat!(
+        "- The `web` feature adds [`gesture::web::listen`], which follows a browser's\n",
+        "  wheel and touch events over a view drawn in an element.",
+    )
+)]
 //!
 //! [Ratatui]: https://ratatui.rs
 //! [`StatefulWidget`]: ratatui_core::widgets::StatefulWidget
@@ -146,6 +164,7 @@ mod writer;
 
 #[cfg(feature = "_front-matter")]
 pub mod front_matter;
+pub mod gesture;
 #[cfg(feature = "syntax")]
 mod syntax;
 
