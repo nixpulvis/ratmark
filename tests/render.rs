@@ -103,6 +103,26 @@ fn code_is_highlighted_with_terminal_colors() {
     assert_eq!(fg("x"), Some(theme.code_block.fg));
 }
 
+#[cfg(feature = "syntax")]
+#[test]
+fn code_is_highlighted_in_the_syntax_palette() {
+    use ratatui_core::style::Color;
+
+    let mut palette = [Color::Reset; 16];
+    palette[8] = Color::Rgb(0x66, 0x66, 0x66);
+    let theme = Theme {
+        syntax_palette: Some(palette),
+        ..Theme::default()
+    };
+    let rendered = Rendered::render("```rust\nx; // y\n```", 20, &theme);
+    let comment = rendered.lines[0]
+        .spans
+        .iter()
+        .find(|s| s.content.contains("//"))
+        .map(|s| s.style.fg);
+    assert_eq!(comment, Some(Some(Color::Rgb(0x66, 0x66, 0x66))));
+}
+
 #[test]
 fn long_code_lines_are_cut_off() {
     let out = lines("```\nabcdefgh\nab\n```", 6);

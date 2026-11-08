@@ -29,7 +29,7 @@ impl Theme {
                     .map(|(style, text)| {
                         let c = style.foreground;
                         let style = match c.a {
-                            0 => base.fg(Color::Indexed(c.r)),
+                            0 => base.fg(self.syntax_color(c.r)),
                             1 => base,
                             _ => base.fg(Color::Rgb(c.r, c.g, c.b)),
                         };
@@ -40,6 +40,16 @@ impl Theme {
             );
         }
         Some(lines)
+    }
+
+    /// Terminal color number `n`, in [`Theme::syntax_palette`] when it has
+    /// one for it.
+    fn syntax_color(&self, n: u8) -> Color {
+        self.syntax_palette
+            .as_ref()
+            .and_then(|palette| palette.get(usize::from(n)))
+            .copied()
+            .unwrap_or(Color::Indexed(n))
     }
 }
 

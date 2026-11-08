@@ -64,6 +64,12 @@ pub struct Theme {
     ///
     /// [bat]: https://github.com/sharkdp/bat
     pub syntax: Option<&'static str>,
+    /// Fixed colors for the terminal color numbers 0 through 15 that the
+    /// [`Theme::syntax`] theme names, like `"ansi"` does, so code is drawn in
+    /// these instead of the terminal's own palette. With `None`, as in
+    /// [`Theme::ansi_dark`] and [`Theme::ansi_light`], they stay terminal
+    /// colors. Numbers past 15 always do.
+    pub syntax_palette: Option<[Color; 16]>,
     /// Styles for elements with these classes, written like CSS class
     /// selectors, `.note` or `.note.warning`, and patched in order over
     /// everything inside a matching element. A code block inside takes its
@@ -138,6 +144,7 @@ impl Theme {
             table_row_rules: true,
             small: gray,
             syntax: Some("ansi"),
+            syntax_palette: None,
             classes: Vec::new(),
         }
     }
@@ -177,6 +184,7 @@ impl Theme {
             table_row_rules: true,
             small: dim,
             syntax: None,
+            syntax_palette: None,
             classes: Vec::new(),
         }
     }
