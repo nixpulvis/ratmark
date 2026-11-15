@@ -25,7 +25,7 @@ jobs:
 
       # Every feature, as on docs.rs, with links to other crates at the
       # versions in Cargo.lock. -Zrustdoc-map sends crates.io dependencies to
-      # docs.rs, as docs.rs does. ratatui-core and pulldown-kram are git
+      # docs.rs, as docs.rs does. ratatui-core, pulldown-kram and ratjest are git
       # dependencies, which docs.rs doesn't have, so they're documented here
       # too, and --extern-html-root-url says where. Without it, rustdoc only
       # links them when their docs happen to be written first.
@@ -35,9 +35,10 @@ jobs:
             -Zunstable-options
             --extern-html-root-url ratatui_core=https://nixpulvis.com/ratmark/
             --extern-html-root-url pulldown_kram=https://nixpulvis.com/ratmark/
+            --extern-html-root-url ratjest=https://nixpulvis.com/ratmark/
         run: >
           cargo doc --locked --no-deps --all-features -Zrustdoc-map
-          -p ratmark -p ratatui-core -p pulldown-kram
+          -p ratmark -p ratatui-core -p pulldown-kram -p ratjest
 
       # rustdoc puts the crate's docs under ratmark/, with nothing at the
       # root, so send the root there. .nojekyll keeps Pages from running the

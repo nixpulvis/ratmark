@@ -201,6 +201,35 @@ impl MarkdownState {
         block.is_some_and(|(block, max)| self.shift_block(block, max, columns))
     }
 
+    /// Carries out a step of a [`ratjest`] gesture: scrolls, or shifts the
+    /// wide code block under the gesture. Returns whether it moved, which it
+    /// doesn't at the end, or sideways away from wide code.
+    ///
+    /// ```
+    /// use ratmark::MarkdownState;
+    /// use ratmark::ratjest::terminal::Wheel;
+    /// # use ratatui_core::{buffer::Buffer, layout::Rect, widgets::StatefulWidget};
+    ///
+    /// let markdown = (1..=20).map(|n| format!("{n}\n\n")).collect::<String>();
+    /// let mut state = MarkdownState::new(markdown);
+    /// # let area = Rect::new(0, 0, 10, 5);
+    /// # ratmark::MarkdownView::new(&Default::default())
+    /// #     .render(area, &mut Buffer::empty(area), &mut state);
+    /// // Three lines, or columns, a tick.
+    /// let mut wheel = Wheel::new(3);
+    ///
+    /// // A tick down, with the pointer over column 4 of row 2.
+    /// wheel.tick(4, 2, (0, 1), |step| state.step(step));
+    /// assert_eq!(state.scroll(), 3);
+    /// ```
+    #[cfg(feature = "ratjest")]
+    pub fn step(&mut self, step: ratjest::Step) -> bool {
+        match step.axis {
+            ratjest::Axis::Vertical => self.scroll_by(step.cells),
+            ratjest::Axis::Horizontal => self.shift_at(step.column, step.row, step.cells),
+        }
+    }
+
     /// The focused link.
     pub fn focused(&self) -> Option<&Link> {
         self.rendered()?.links.get(self.focus?)

@@ -45,26 +45,28 @@ width changes, and draws it scrolled with the focused link highlighted.
 Keys and clicks map onto `MarkdownState` methods like `scroll_by`, `shift_at`,
 `focus_next` and `link_at`. See its [docs][MarkdownState] for the rest.
 
-Mouse wheels, trackpads and touch go through [`gesture`][gesture], which locks
-each gesture to one axis. Use [`terminal::Wheel`][Wheel] in a terminal, or
-[`web::listen`][listen] in the browser with the [`web`](#web) feature.
+Mouse wheels, trackpads and touch go through [ratjest], which locks each
+gesture to one axis and hands over its steps. With the [`ratjest`](#ratjest)
+feature, `MarkdownState::step` carries one out.
 
 ## Examples
 
 `tui` is a full-screen reader, `MarkdownState` driving a small app that scrolls,
 follows links and shifts wide code sideways, with the keyboard and mouse.
-Without a file it shows a guide to its keys. Turn on the features a file needs,
-like `syntax` to highlight the code in this one:
+Without a file it shows a guide to its keys. It needs `ratjest` for the mouse
+wheel. Turn on the features a file needs too, like `syntax` to highlight the
+code in this one:
 
 ```sh
-cargo run --example tui --features syntax -- README.md
+cargo run --example tui --features ratjest,syntax -- README.md
 ```
 
 ## Features
 
-All features are off by default. Each, but `web`, has an example that prints a
-short document, drawn by `MarkdownView` with Ratatui's crossterm backend, to the
-terminal in color. They need an interactive terminal, not a pipe.
+All features are off by default. Each, but `ratjest`, has an example that
+prints a short document, drawn by `MarkdownView` with Ratatui's crossterm
+backend, to the terminal in color. They need an interactive terminal, not a
+pipe.
 
 ### `syntax`
 
@@ -122,11 +124,24 @@ cell extensions, which aren't released yet ([ratatui#2854]), and
 cargo run --example links --features links
 ```
 
-### `web`
+### `ratjest`
 
-Follows a browser's wheel and touch events over the element a view is drawn in,
-like [Ratzilla]'s, with `gesture::web::listen`. It needs
-`wasm32-unknown-unknown`, and a browser to try it in.
+Scrolls the view, and shifts its wide code, by the steps of [ratjest]'s
+gestures, with `MarkdownState::step`. ratjest follows a terminal's wheel with
+`terminal::Wheel`, and a browser's wheel and touch events with its `web`
+feature's `web::listen`, over the element a view is drawn in, like [Ratzilla]'s.
+
+```rust
+use ratmark::ratjest::terminal::Wheel;
+
+// Three lines, or columns, a tick.
+let mut wheel = Wheel::new(3);
+
+// On a wheel event, a tick down with the pointer over `column`, `row`.
+wheel.tick(column, row, (0, 1), |step| state.step(step));
+```
+
+The `tui` example scrolls with it.
 
 ## Testing
 
@@ -163,6 +178,4 @@ Licensed under either of [Apache License, Version 2.0](LICENSE-APACHE) or
 [avid-rustacean]: https://github.com/TylerBloom/avid-rustacean
 [ratatui#2854]: https://github.com/ratatui/ratatui/issues/2854
 [MarkdownState]: https://nixpulvis.com/ratmark/ratmark/struct.MarkdownState.html
-[gesture]: https://nixpulvis.com/ratmark/ratmark/gesture/index.html
-[Wheel]: https://nixpulvis.com/ratmark/ratmark/gesture/terminal/struct.Wheel.html
-[listen]: https://nixpulvis.com/ratmark/ratmark/gesture/web/fn.listen.html
+[ratjest]: https://github.com/nixpulvis/ratjest

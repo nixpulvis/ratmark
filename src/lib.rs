@@ -39,9 +39,9 @@
 //! [`focus_next`](MarkdownState::focus_next) and
 //! [`link_at`](MarkdownState::link_at).
 //!
-//! Mouse wheels, trackpads and touch go through [`gesture`], which locks
-//! each gesture to one axis. Use [`gesture::terminal::Wheel`] in a terminal,
-//! or `gesture::web::listen` in the browser with the `web` feature.
+//! Mouse wheels, trackpads and touch go through [ratjest], which locks each
+//! gesture to one axis and hands over its steps. With the `ratjest` feature,
+//! `MarkdownState::step` carries one out.
 //!
 //! Underneath, [`Rendered::render`] lays a document out for a given width
 //! and returns its lines along with where each link landed.
@@ -75,7 +75,7 @@
         feature = "html",
         feature = "kramdown",
         feature = "_front-matter",
-        feature = "web",
+        feature = "ratjest",
     ),
     doc = "# Features"
 )]
@@ -139,14 +139,16 @@
     )
 )]
 #![cfg_attr(
-    feature = "web",
+    feature = "ratjest",
     doc = concat!(
-        "- The `web` feature adds [`gesture::web::listen`], which follows a browser's\n",
-        "  wheel and touch events over a view drawn in an element.",
+        "- The `ratjest` feature adds [`MarkdownState::step`], which scrolls the view,\n",
+        "  or shifts the wide code under the pointer, by a step of a [`ratjest`]\n",
+        "  gesture, from a wheel, a trackpad or a finger.",
     )
 )]
 //!
 //! [Ratatui]: https://ratatui.rs
+//! [ratjest]: https://github.com/nixpulvis/ratjest
 //! [`StatefulWidget`]: ratatui_core::widgets::StatefulWidget
 //! [`Terminal`]: ratatui_core::terminal::Terminal
 
@@ -164,7 +166,6 @@ mod writer;
 
 #[cfg(feature = "_front-matter")]
 pub mod front_matter;
-pub mod gesture;
 #[cfg(feature = "syntax")]
 mod syntax;
 
@@ -178,6 +179,12 @@ pub use view::{MarkdownState, MarkdownView};
 ///
 /// [`Line`]: ratatui_core::text::Line
 pub use ratatui_core;
+
+/// The `ratjest` that [`MarkdownState::step`] takes its steps from. Use it
+/// for the gestures, like [`ratjest::terminal::Wheel`], so they're always
+/// the same version as ratmark's.
+#[cfg(feature = "ratjest")]
+pub use ratjest;
 
 /// A rendered document.
 #[derive(Debug, Clone, Default, PartialEq)]

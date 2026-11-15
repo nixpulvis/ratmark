@@ -23,7 +23,7 @@ use ratatui_crossterm::crossterm::execute;
 use ratatui_crossterm::crossterm::terminal::{
     EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode,
 };
-use ratmark::gesture::terminal::Wheel;
+use ratmark::ratjest::terminal::Wheel;
 use ratmark::{MarkdownState, MarkdownView, Theme};
 use terminal_colorsaurus::{QueryOptions, ThemeMode, theme_mode};
 
@@ -218,7 +218,7 @@ impl App {
         };
         let state = &mut self.state;
         self.wheel
-            .tick(mouse.column, mouse.row, ticks, |step| step.apply(state));
+            .tick(mouse.column, mouse.row, ticks, |step| state.step(step));
     }
 
     /// Scrolls to a `#section` link's heading. Other links are the app's to
