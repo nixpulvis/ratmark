@@ -1,0 +1,35 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Starts following the wheel and touches over the view drawn in `screen`, with cells `cell` CSS pixels wide and tall, handing each `Step` to `step`, which carries it out and returns whether it moved. The view takes these events over from the browser’s own scrolling, setting `screen`’s `touch-action` to `none` so the browser doesn’t pan or zoom with its touches first, and follows them for as long as the page lives, so call it once."><title>listen in ratmark::gesture::web - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-1f5a765c.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="ratmark" data-themes="" data-resource-suffix="" data-rustdoc-version="1.102.0-nightly (5f4effd57 2026-11-13)" data-channel="nightly" data-search-js="search-69faa2c4.js" data-stringdex-js="stringdex-b5109af9.js" data-settings-js="settings-9b351432.js" ><script src="../../../static.files/storage-41dd4d93.js"></script><script defer src="sidebar-items.js"></script><script defer src="../../../static.files/main-419f3a3f.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-101b5a15.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc fn"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">listen</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../ratmark/index.html">ratmark</a><span class="version">0.1.0</span></h2></div><div class="sidebar-elems"><div id="rustdoc-modnav"><h2><a href="index.html">In ratmark::<wbr>gesture::<wbr>web</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../../index.html">ratmark</a>::<wbr><a href="../index.html">gesture</a>::<wbr><a href="index.html">web</a></div><h1>Function <span class="fn">listen</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../src/ratmark/gesture/web.rs.html#50-67">Source</a> </span></div><pre class="rust item-decl"><code>pub fn listen(
+    screen: &amp;<a class="struct" href="https://docs.rs/web-sys/0.3/web_sys/features/gen_Element/struct.Element.html" title="struct web_sys::features::gen_Element::Element">Element</a>,
+    cell: (<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.f64.html">f64</a>, <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.f64.html">f64</a>),
+    step: impl <a class="trait" href="https://doc.rust-lang.org/nightly/core/ops/function/trait.FnMut.html" title="trait core::ops::function::FnMut">FnMut</a>(<a class="struct" href="../struct.Step.html" title="struct ratmark::gesture::Step">Step</a>) -&gt; <a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.bool.html">bool</a> + 'static,
+) -&gt; <a class="enum" href="https://doc.rust-lang.org/nightly/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/nightly/std/primitive.unit.html">()</a>, <a class="struct" href="https://docs.rs/wasm-bindgen/0.2/wasm_bindgen/struct.JsValue.html" title="struct wasm_bindgen::JsValue">JsValue</a>&gt;</code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Starts following the wheel and touches over the view drawn in <code>screen</code>,
+with cells <code>cell</code> CSS pixels wide and tall, handing each <a href="../struct.Step.html" title="struct ratmark::gesture::Step"><code>Step</code></a> to
+<code>step</code>, which carries it out and returns whether it moved. The view takes
+these events over from the browser’s own scrolling, setting <code>screen</code>’s
+<code>touch-action</code> to <code>none</code> so the browser doesn’t pan or zoom with its
+touches first, and follows them for as long as the page lives, so call
+it once.</p>
+<p>With <a href="https://github.com/orhun/ratzilla">Ratzilla</a>, the state is shared between drawing and scrolling, and
+the backend measures its cells:</p>
+
+<div class="example-wrap ignore"><a href="#" class="tooltip" title="This example is not tested">ⓘ</a><pre class="rust rust-example-rendered"><code><span class="kw">use </span>std::{cell::RefCell, rc::Rc};
+
+<span class="kw">use </span>ratmark::{MarkdownState, MarkdownView, Theme};
+<span class="kw">use </span>ratzilla::ratatui::Terminal;
+<span class="kw">use </span>ratzilla::{CellSized, DomBackend, WebRenderer};
+
+<span class="kw">let </span>state = Rc::new(RefCell::new(MarkdownState::new(markdown)));
+<span class="kw">let </span>terminal = Terminal::new(DomBackend::new_by_element(screen.clone())<span class="question-mark">?</span>)<span class="question-mark">?</span>;
+
+<span class="kw">let </span>(width, height) = terminal.backend().cell_size_css_px();
+<span class="kw">let </span>cell = (f64::from(width), f64::from(height));
+<span class="kw">let </span>scrolled = state.clone();
+ratmark::gesture::web::listen(<span class="kw-2">&amp;</span>screen, cell, <span class="kw">move </span>|step| {
+    step.apply(<span class="kw-2">&amp;mut </span>scrolled.borrow_mut())
+})<span class="question-mark">?</span>;
+
+<span class="kw">let </span>theme = Theme::default();
+terminal.draw_web(<span class="kw">move </span>|frame| {
+    <span class="kw">let </span>view = MarkdownView::new(<span class="kw-2">&amp;</span>theme);
+    frame.render_stateful_widget(view, frame.area(), <span class="kw-2">&amp;mut </span>state.borrow_mut());
+});</code></pre></div></div></details></section></div></main></body></html>
