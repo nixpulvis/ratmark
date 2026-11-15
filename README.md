@@ -46,24 +46,24 @@ Keys and clicks map onto `MarkdownState` methods like `scroll_by`, `shift_at`,
 `focus_next` and `link_at`. See its [docs][MarkdownState] for the rest.
 
 Mouse wheels, trackpads and touch go through [ratjest], which locks each
-gesture to one axis and hands over its steps. With the [`ratjest`](#ratjest)
+gesture to one axis and hands over its steps. With the [`scroll`](#scroll)
 feature, `MarkdownState::step` carries one out.
 
 ## Examples
 
 `tui` is a full-screen reader, `MarkdownState` driving a small app that scrolls,
 follows links and shifts wide code sideways, with the keyboard and mouse.
-Without a file it shows a guide to its keys. It needs `ratjest` for the mouse
+Without a file it shows a guide to its keys. It needs `scroll` for the mouse
 wheel. Turn on the features a file needs too, like `syntax` to highlight the
 code in this one:
 
 ```sh
-cargo run --example tui --features ratjest,syntax -- README.md
+cargo run --example tui --features scroll,syntax -- README.md
 ```
 
 ## Features
 
-All features are off by default. Each, but `ratjest`, has an example that
+All features are off by default. Each, but `scroll`, has an example that
 prints a short document, drawn by `MarkdownView` with Ratatui's crossterm
 backend, to the terminal in color. They need an interactive terminal, not a
 pipe.
@@ -124,12 +124,16 @@ cell extensions, which aren't released yet ([ratatui#2854]), and
 cargo run --example links --features links
 ```
 
-### `ratjest`
+### `scroll`
 
 Scrolls the view, and shifts its wide code, by the steps of [ratjest]'s
 gestures, with `MarkdownState::step`. ratjest follows a terminal's wheel with
 `terminal::Wheel`, and a browser's wheel and touch events with its `web`
 feature's `web::listen`, over the element a view is drawn in, like [Ratzilla]'s.
+
+ratmark turns on none of ratjest's own features, so a terminal app builds
+nothing for the browser. An app that runs in one depends on ratjest as well,
+with `web` on.
 
 ```rust
 use ratmark::ratjest::terminal::Wheel;

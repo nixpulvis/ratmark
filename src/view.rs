@@ -222,7 +222,7 @@ impl MarkdownState {
     /// wheel.tick(4, 2, (0, 1), |step| state.step(step));
     /// assert_eq!(state.scroll(), 3);
     /// ```
-    #[cfg(feature = "ratjest")]
+    #[cfg(feature = "scroll")]
     pub fn step(&mut self, step: ratjest::Step) -> bool {
         match step.axis {
             ratjest::Axis::Vertical => self.scroll_by(step.cells),

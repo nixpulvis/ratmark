@@ -40,7 +40,7 @@ links = ["ratatui-core/cell-extensions", "dep:url"]
 html = ["dep:html5gum"]
 # Scroll the view, and shift its wide code, with ratjest's gestures, from a
 # wheel, a trackpad or a finger, with `MarkdownState::step`.
-ratjest = ["dep:ratjest"]
+scroll = ["dep:ratjest"]
 
 [dependencies]
 pulldown-cmark = { version = "0.13", default-features = false }
@@ -67,7 +67,7 @@ unicode-width = "0.2"
 
 [[example]]
 name = "tui"
-required-features = ["ratjest"]
+required-features = ["scroll"]
 
 [[example]]
 name = "syntax"
