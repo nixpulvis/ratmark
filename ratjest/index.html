@@ -1,0 +1,46 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Scrolling a terminal UI with a wheel, a trackpad or a finger, a cell at a time."><title>ratjest - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../static.files/rustdoc-1f5a765c.css"><meta name="rustdoc-vars" data-root-path="../" data-static-root-path="../static.files/" data-current-crate="ratjest" data-themes="" data-resource-suffix="" data-rustdoc-version="1.102.0-nightly (5f4effd57 2026-11-13)" data-channel="nightly" data-search-js="search-69faa2c4.js" data-stringdex-js="stringdex-b5109af9.js" data-settings-js="settings-9b351432.js" ><script src="../static.files/storage-41dd4d93.js"></script><script defer src="../crates.js"></script><script defer src="../static.files/main-419f3a3f.js"></script><noscript><link rel="stylesheet" href="../static.files/noscript-101b5a15.css"></noscript><link rel="alternate icon" type="image/png" href="../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../static.files/favicon-044be391.svg"></head><body class="rustdoc mod crate"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Crate ratjest</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../ratjest/index.html">ratjest</a><span class="version">0.1.0</span></h2></div><div class="sidebar-elems"><ul class="block"><li><a id="all-types" href="all.html">All Items</a></li></ul><section id="rustdoc-toc"><h3><a href="#modules">Crate Items</a></h3><ul class="block"><li><a href="#modules" title="Modules">Modules</a></li><li><a href="#structs" title="Structs">Structs</a></li><li><a href="#enums" title="Enums">Enums</a></li></ul></section><div id="rustdoc-modnav"></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><h1>Crate <span>ratjest</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../src/ratjest/lib.rs.html#1-411">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Scrolling a terminal UI with a wheel, a trackpad or a finger, a cell at a
+time.</p>
+<p>Each gesture only goes one way, up and down, or sideways, so a swipe
+that’s a little diagonal doesn’t do both. Hosts that report movement in
+pixels, like a browser, move the view as far as the hand does, a line or
+a column at a time once one’s worth adds up, and a flick keeps the view
+gliding for a bit, slowing down, like a page in the browser does.</p>
+<p><a href="struct.Gestures.html" title="struct ratjest::Gestures"><code>Gestures</code></a> does the arithmetic, from pixels and timestamps, and hands
+each whole cell of movement to a callback as a <a href="struct.Step.html" title="struct ratjest::Step"><code>Step</code></a>. The callback
+moves whatever the app scrolls, and returns whether it moved, which ends
+the gesture at the end of what there is to scroll. Each host feeds it its
+own events:</p>
+<ul>
+<li>In a terminal, <a href="terminal/struct.Wheel.html" title="struct ratjest::terminal::Wheel"><code>terminal::Wheel</code></a> takes the wheel’s ticks, like
+crossterm’s <code>MouseEventKind::ScrollDown</code>.</li>
+<li>In a browser, the <code>web</code> feature’s <code>web::listen</code> follows the wheel and
+touch events over the element a view is drawn in, like <a href="https://github.com/ratatui/ratzilla">Ratzilla</a>’s.</li>
+<li>Anywhere else that reports movement in pixels, call <a href="struct.Gestures.html" title="struct ratjest::Gestures"><code>Gestures</code></a>’
+methods from its events, and <a href="struct.Gestures.html#method.glide" title="method ratjest::Gestures::glide"><code>Gestures::glide</code></a> once a frame after
+<a href="struct.Gestures.html#method.touch_end" title="method ratjest::Gestures::touch_end"><code>Gestures::touch_end</code></a> says a touch was a flick.</li>
+</ul>
+<p>Nothing here draws, or depends on what does. A <a href="struct.Step.html" title="struct ratjest::Step"><code>Step</code></a> is only so many
+cells one way, over the cell the gesture is on.</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>ratjest::{Axis, Gestures, Step};
+
+<span class="comment">// Twenty lines in a view five tall, so the top line is 0 through 15.
+</span><span class="kw">let </span><span class="kw-2">mut </span>top: isize = <span class="number">0</span>;
+<span class="kw">let </span><span class="kw-2">mut </span>scroll = |step: Step| {
+    <span class="kw">if </span>step.axis != Axis::Vertical {
+        <span class="kw">return </span><span class="bool-val">false</span>;
+    }
+    <span class="kw">let </span>before = top;
+    top = (top + step.cells).clamp(<span class="number">0</span>, <span class="number">15</span>);
+    top != before
+};
+
+<span class="comment">// Cells 8 pixels wide and 16 tall.
+</span><span class="kw">let </span><span class="kw-2">mut </span>gestures = Gestures::new(<span class="number">8.0</span>, <span class="number">16.0</span>);
+
+<span class="comment">// Half a line doesn't move yet, the rest of a line and a half does.
+</span>gestures.wheel((<span class="number">0.0</span>, <span class="number">0.0</span>), (<span class="number">0.0</span>, <span class="number">8.0</span>), <span class="number">0.0</span>, <span class="kw-2">&amp;mut </span>scroll);
+gestures.wheel((<span class="number">0.0</span>, <span class="number">0.0</span>), (<span class="number">0.0</span>, <span class="number">24.0</span>), <span class="number">10.0</span>, <span class="kw-2">&amp;mut </span>scroll);
+<span class="macro">assert_eq!</span>(top, <span class="number">2</span>);</code></pre></div></div></details><h2 id="modules" class="section-header">Modules<a href="#modules" class="anchor">§</a></h2><dl class="item-table"><dt><a class="mod" href="terminal/index.html" title="mod ratjest::terminal">terminal</a></dt><dd>Following a terminal’s mouse wheel with <a href="struct.Gestures.html" title="struct ratjest::Gestures"><code>Gestures</code></a>.</dd></dl><h2 id="structs" class="section-header">Structs<a href="#structs" class="anchor">§</a></h2><dl class="item-table"><dt><a class="struct" href="struct.Gestures.html" title="struct ratjest::Gestures">Gestures</a></dt><dd>Turns wheel and touch movement, in pixels, into <a href="struct.Step.html" title="struct ratjest::Step"><code>Step</code></a>s of whole
+cells, keeping the part of a cell left over for the gesture’s next
+event.</dd><dt><a class="struct" href="struct.Step.html" title="struct ratjest::Step">Step</a></dt><dd>A gesture’s move of whole cells.</dd></dl><h2 id="enums" class="section-header">Enums<a href="#enums" class="anchor">§</a></h2><dl class="item-table"><dt><a class="enum" href="enum.Axis.html" title="enum ratjest::Axis">Axis</a></dt><dd>The way a gesture moves the view. A gesture only ever moves one way.</dd></dl></section></div></main></body></html>
