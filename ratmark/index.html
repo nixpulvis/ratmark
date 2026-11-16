@@ -29,8 +29,8 @@ highlighted.</p>
 <a href="struct.MarkdownState.html#method.focus_next" title="method ratmark::MarkdownState::focus_next"><code>focus_next</code></a> and
 <a href="struct.MarkdownState.html#method.link_at" title="method ratmark::MarkdownState::link_at"><code>link_at</code></a>.</p>
 <p>Mouse wheels, trackpads and touch go through <a href="https://github.com/nixpulvis/ratjest">ratjest</a>, which locks each
-gesture to one axis and hands over its steps. With the <code>scroll</code> feature,
-<code>MarkdownState::step</code> carries one out.</p>
+gesture to one axis. With the <code>scroll</code> feature, <a href="struct.MarkdownState.html" title="struct ratmark::MarkdownState"><code>MarkdownState</code></a> is a
+ratjest <code>Scroll</code>, so its wheel and its touch listener scroll it.</p>
 <p>Underneath, <a href="struct.Rendered.html#method.render" title="associated function ratmark::Rendered::render"><code>Rendered::render</code></a> lays a document out for a given width
 and returns its lines along with where each link landed.</p>
 
@@ -95,9 +95,9 @@ an HTML block.</li>
 <li>The <code>front-matter-yaml</code> and <code>front-matter-toml</code> features add
 <a href="front_matter/index.html" title="mod ratmark::front_matter"><code>front_matter</code></a>, for splitting YAML or TOML front matter off the top of a
 document before rendering the rest, and deserializing it with serde.</li>
-<li>The <code>scroll</code> feature adds <a href="struct.MarkdownState.html#method.step" title="method ratmark::MarkdownState::step"><code>MarkdownState::step</code></a>, which scrolls the view,
-or shifts the wide code under the pointer, by a step of a <a href="../ratjest/index.html" title="mod ratjest"><code>ratjest</code></a>
-gesture, from a wheel, a trackpad or a finger.</li>
+<li>The <code>scroll</code> feature makes <a href="struct.MarkdownState.html" title="struct ratmark::MarkdownState"><code>MarkdownState</code></a> a <a href="../ratjest/trait.Scroll.html" title="trait ratjest::Scroll"><code>ratjest::Scroll</code></a>, which
+scrolls the view, or shifts the wide code under the pointer, with a
+gesture from a wheel, a trackpad or a finger.</li>
 </ul>
 </div></details><h2 id="reexports" class="section-header">Re-exports<a href="#reexports" class="anchor">§</a></h2><dl class="item-table reexports"><dt id="reexport.ratatui_core"><code>pub use <a class="mod" href="../ratatui_core/index.html" title="mod ratatui_core">ratatui_core</a>;</code></dt><dt id="reexport.ratjest"><code>pub use <a class="mod" href="../ratjest/index.html" title="mod ratjest">ratjest</a>;</code></dt></dl><h2 id="modules" class="section-header">Modules<a href="#modules" class="anchor">§</a></h2><dl class="item-table"><dt><a class="mod" href="front_matter/index.html" title="mod ratmark::front_matter">front_<wbr>matter</a></dt><dd>A preamble of metadata at the very top of a file, fenced off from the
 document after it. Static site generators like Jekyll and Hugo read it

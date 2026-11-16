@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["Axis"],"mod":["terminal"],"struct":["Gestures","Step"]};
+window.SIDEBAR_ITEMS = {"enum":["Axis"],"mod":["terminal"],"struct":["Gestures","Step"],"trait":["Scroll"]};
