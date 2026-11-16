@@ -80,7 +80,7 @@ impl StatefulWidget for MarkdownView<'_> {
 ///
 /// // A `#section` link scrolls to the heading it loosely names.
 /// state.scroll_to_anchor("the-end");
-/// assert_eq!(state.scroll(), 6);
+/// assert_eq!(state.offset(), 6);
 ///
 /// // Code too wide for the page shifts sideways, the topmost block on
 /// // screen here, or the one under the pointer with `shift_at`.
@@ -135,7 +135,7 @@ impl MarkdownState {
     }
 
     /// The first line on screen.
-    pub fn scroll(&self) -> usize {
+    pub fn offset(&self) -> usize {
         self.scroll
     }
 
@@ -199,35 +199,6 @@ impl MarkdownState {
             .find(|o| o.lines.contains(&line) && o.columns().contains(&x))
             .map(|o| (o.block, o.max_shift()));
         block.is_some_and(|(block, max)| self.shift_block(block, max, columns))
-    }
-
-    /// Carries out a step of a [`ratjest`] gesture: scrolls, or shifts the
-    /// wide code block under the gesture. Returns whether it moved, which it
-    /// doesn't at the end, or sideways away from wide code.
-    ///
-    /// ```
-    /// use ratmark::MarkdownState;
-    /// use ratmark::ratjest::terminal::Wheel;
-    /// # use ratatui_core::{buffer::Buffer, layout::Rect, widgets::StatefulWidget};
-    ///
-    /// let markdown = (1..=20).map(|n| format!("{n}\n\n")).collect::<String>();
-    /// let mut state = MarkdownState::new(markdown);
-    /// # let area = Rect::new(0, 0, 10, 5);
-    /// # ratmark::MarkdownView::new(&Default::default())
-    /// #     .render(area, &mut Buffer::empty(area), &mut state);
-    /// // Three lines, or columns, a tick.
-    /// let mut wheel = Wheel::new(3);
-    ///
-    /// // A tick down, with the pointer over column 4 of row 2.
-    /// wheel.tick(4, 2, (0, 1), |step| state.step(step));
-    /// assert_eq!(state.scroll(), 3);
-    /// ```
-    #[cfg(feature = "scroll")]
-    pub fn step(&mut self, step: ratjest::Step) -> bool {
-        match step.axis {
-            ratjest::Axis::Vertical => self.scroll_by(step.cells),
-            ratjest::Axis::Horizontal => self.shift_at(step.column, step.row, step.cells),
-        }
     }
 
     /// The focused link.
@@ -464,6 +435,41 @@ impl MarkdownState {
     }
 }
 
+/// A step of a [`ratjest`] gesture scrolls the view, or shifts the wide
+/// code block under the gesture. It doesn't move at the end, or sideways
+/// away from wide code.
+///
+/// ```
+/// use ratmark::MarkdownState;
+/// use ratmark::ratjest::terminal::Wheel;
+/// # use ratatui_core::{buffer::Buffer, layout::Rect, widgets::StatefulWidget};
+///
+/// let markdown = (1..=20).map(|n| format!("{n}\n\n")).collect::<String>();
+/// let mut state = MarkdownState::new(markdown);
+/// # let area = Rect::new(0, 0, 10, 5);
+/// # ratmark::MarkdownView::new(&Default::default())
+/// #     .render(area, &mut Buffer::empty(area), &mut state);
+/// // Three lines, or columns, a tick.
+/// let mut wheel = Wheel::new(3);
+///
+/// // A tick down, with the pointer over column 4 of row 2 of the view,
+/// // which is drawn in `area`.
+/// wheel.tick(4, 2, (0, 1), &mut state, area);
+/// assert_eq!(state.offset(), 3);
+/// ```
+#[cfg(feature = "scroll")]
+impl ratjest::Scroll for MarkdownState {
+    fn scroll(&mut self, step: ratjest::Step, area: Rect) -> bool {
+        if !step.is_over(area) {
+            return false;
+        }
+        match step.axis {
+            ratjest::Axis::Vertical => self.scroll_by(step.cells),
+            ratjest::Axis::Horizontal => self.shift_at(step.column, step.row, step.cells),
+        }
+    }
+}
+
 impl Region {
     /// Where the region is on screen in `area`, scrolled to `scroll`, if it's
     /// in view.
@@ -522,16 +528,16 @@ mod tests {
         draw(&mut state, 10, 2);
         assert!(state.scroll_by(100));
         assert!(!state.scroll_by(1));
-        assert_eq!(state.scroll(), 3);
+        assert_eq!(state.offset(), 3);
         let buf = draw(&mut state, 10, 2);
         assert_eq!((row(&buf, 0), row(&buf, 1)), ("".into(), "c".into()));
         state.scroll_by(-100);
-        assert_eq!(state.scroll(), 0);
+        assert_eq!(state.offset(), 0);
         // Two lines high, a page keeps none for context, but still moves.
         assert!(state.page_by(2));
-        assert_eq!(state.scroll(), 2);
+        assert_eq!(state.offset(), 2);
         assert!(state.page_by(-5));
-        assert_eq!(state.scroll(), 0);
+        assert_eq!(state.offset(), 0);
     }
 
     #[test]
@@ -557,7 +563,7 @@ mod tests {
         assert_eq!(state.focused().unwrap().url, "/c");
         state.focus_next();
         assert_eq!(state.focused().unwrap().url, "/a");
-        assert_eq!(state.scroll(), 0);
+        assert_eq!(state.offset(), 0);
     }
 
     #[test]
@@ -642,6 +648,6 @@ mod tests {
         let mut state = MarkdownState::new("a\n\nb\n\n## The End\n\nc");
         state.scroll_to_anchor("the-end");
         draw(&mut state, 20, 2);
-        assert_eq!(state.scroll(), 4);
+        assert_eq!(state.offset(), 4);
     }
 }

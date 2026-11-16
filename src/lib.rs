@@ -40,8 +40,8 @@
 //! [`link_at`](MarkdownState::link_at).
 //!
 //! Mouse wheels, trackpads and touch go through [ratjest], which locks each
-//! gesture to one axis and hands over its steps. With the `scroll` feature,
-//! `MarkdownState::step` carries one out.
+//! gesture to one axis. With the `scroll` feature, [`MarkdownState`] is a
+//! ratjest `Scroll`, so its wheel and its touch listener scroll it.
 //!
 //! Underneath, [`Rendered::render`] lays a document out for a given width
 //! and returns its lines along with where each link landed.
@@ -141,9 +141,9 @@
 #![cfg_attr(
     feature = "scroll",
     doc = concat!(
-        "- The `scroll` feature adds [`MarkdownState::step`], which scrolls the view,\n",
-        "  or shifts the wide code under the pointer, by a step of a [`ratjest`]\n",
-        "  gesture, from a wheel, a trackpad or a finger.",
+        "- The `scroll` feature makes [`MarkdownState`] a [`ratjest::Scroll`], which\n",
+        "  scrolls the view, or shifts the wide code under the pointer, with a\n",
+        "  gesture from a wheel, a trackpad or a finger.",
     )
 )]
 //!
@@ -180,9 +180,9 @@ pub use view::{MarkdownState, MarkdownView};
 /// [`Line`]: ratatui_core::text::Line
 pub use ratatui_core;
 
-/// The `ratjest` that [`MarkdownState::step`] takes its steps from. Use it
-/// for the gestures, like [`ratjest::terminal::Wheel`], so they're always
-/// the same version as ratmark's.
+/// The `ratjest` that [`MarkdownState`] is a [`Scroll`](ratjest::Scroll)
+/// of. Use it for the gestures, like [`ratjest::terminal::Wheel`], so
+/// they're always the same version as ratmark's.
 #[cfg(feature = "scroll")]
 pub use ratjest;
 

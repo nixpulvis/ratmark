@@ -39,7 +39,7 @@ links = ["ratatui-core/cell-extensions", "dep:url"]
 # with html5gum. Without it, HTML is left out.
 html = ["dep:html5gum"]
 # Scroll the view, and shift its wide code, with ratjest's gestures, from a
-# wheel, a trackpad or a finger, with `MarkdownState::step`.
+# wheel, a trackpad or a finger. `MarkdownState` is a ratjest `Scroll`.
 scroll = ["dep:ratjest"]
 
 [dependencies]
@@ -93,3 +93,8 @@ required-features = ["links"]
 [[test]]
 name = "corpus"
 harness = false
+
+# ratjest scrolls Ratatui's own types, so it has to be built on the same
+# Ratatui as this, the one with cell extensions.
+[patch.crates-io]
+ratatui-core = { git = "https://github.com/WeirdBrains/ratatui", branch = "multi-char-cells" }

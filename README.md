@@ -46,8 +46,8 @@ Keys and clicks map onto `MarkdownState` methods like `scroll_by`, `shift_at`,
 `focus_next` and `link_at`. See its [docs][MarkdownState] for the rest.
 
 Mouse wheels, trackpads and touch go through [ratjest], which locks each
-gesture to one axis and hands over its steps. With the [`scroll`](#scroll)
-feature, `MarkdownState::step` carries one out.
+gesture to one axis. With the [`scroll`](#scroll) feature, `MarkdownState` is
+a ratjest `Scroll`, so its wheel and its touch listener scroll it.
 
 ## Examples
 
@@ -126,8 +126,8 @@ cargo run --example links --features links
 
 ### `scroll`
 
-Scrolls the view, and shifts its wide code, by the steps of [ratjest]'s
-gestures, with `MarkdownState::step`. ratjest follows a terminal's wheel with
+Makes `MarkdownState` a [ratjest] `Scroll`, which scrolls the view, and shifts
+its wide code, with ratjest's gestures. ratjest follows a terminal's wheel with
 `terminal::Wheel`, and a browser's wheel and touch events with its `web`
 feature's `web::listen`, over the element a view is drawn in, like [Ratzilla]'s.
 
@@ -141,9 +141,14 @@ use ratmark::ratjest::terminal::Wheel;
 // Three lines, or columns, a tick.
 let mut wheel = Wheel::new(3);
 
-// On a wheel event, a tick down with the pointer over `column`, `row`.
-wheel.tick(column, row, (0, 1), |step| state.step(step));
+// On a wheel event, a tick down with the pointer over `column`, `row`, for
+// a view drawn in `area`.
+wheel.tick(column, row, (0, 1), &mut state, area);
 ```
+
+ratjest scrolls Ratatui's own types, so an app has to build it on the same
+Ratatui as ratmark, with a patch for `ratatui-core` like the one in this
+crate's `Cargo.toml`.
 
 The `tui` example scrolls with it.
 

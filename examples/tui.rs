@@ -11,7 +11,7 @@ use std::io::{self, Stdout};
 use std::time::Duration;
 use std::{env, fs, panic};
 
-use ratatui_core::layout::{Constraint, Layout};
+use ratatui_core::layout::{Constraint, Layout, Rect};
 use ratatui_core::terminal::{Frame, Terminal};
 use ratatui_core::text::Line;
 use ratatui_crossterm::CrosstermBackend;
@@ -134,7 +134,7 @@ impl App {
 
     fn run(&mut self, terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> io::Result<()> {
         loop {
-            terminal.draw(|frame| self.draw(frame))?;
+            let area = terminal.draw(|frame| self.draw(frame))?.area;
             // When input has been quiet a while, or the window comes back
             // into focus, ask for the background again, so the theme follows
             // the terminal between light and dark.
@@ -149,7 +149,7 @@ impl App {
                     }
                     self.key(key.code);
                 }
-                Event::Mouse(mouse) => self.mouse(mouse),
+                Event::Mouse(mouse) => self.mouse(mouse, area),
                 Event::FocusGained => self.recheck_background(),
                 _ => {}
             }
@@ -161,13 +161,20 @@ impl App {
         self.theme = background_theme();
     }
 
+    /// Where things go in the frame's `area`: the body, the document in the
+    /// middle of it, and the status line under them.
+    fn layout(area: Rect) -> [Rect; 3] {
+        let [body, status] =
+            Layout::vertical([Constraint::Fill(1), Constraint::Length(1)]).areas(area);
+        let page = body.centered_horizontally(Constraint::Max(MAX_WIDTH));
+        [body, page, status]
+    }
+
     /// Draws the document, with a status line under it.
     fn draw(&mut self, frame: &mut Frame) {
-        let [body, status] =
-            Layout::vertical([Constraint::Fill(1), Constraint::Length(1)]).areas(frame.area());
+        let [body, page, status] = Self::layout(frame.area());
 
         frame.buffer_mut().set_style(body, self.theme.text);
-        let page = body.centered_horizontally(Constraint::Max(MAX_WIDTH));
         frame.render_stateful_widget(MarkdownView::new(&self.theme), page, &mut self.state);
 
         let note = self
@@ -200,7 +207,9 @@ impl App {
         }
     }
 
-    fn mouse(&mut self, mouse: MouseEvent) {
+    /// A click follows the link under it, and the wheel scrolls the
+    /// document, which is drawn in the frame's `area`.
+    fn mouse(&mut self, mouse: MouseEvent, area: Rect) {
         let ticks = match mouse.kind {
             MouseEventKind::ScrollDown => (0, 1),
             MouseEventKind::ScrollUp => (0, -1),
@@ -216,9 +225,9 @@ impl App {
             }
             _ => return,
         };
-        let state = &mut self.state;
+        let [_, page, _] = Self::layout(area);
         self.wheel
-            .tick(mouse.column, mouse.row, ticks, |step| state.step(step));
+            .tick(mouse.column, mouse.row, ticks, &mut self.state, page);
     }
 
     /// Scrolls to a `#section` link's heading. Other links are the app's to
